@@ -1,22 +1,36 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "motion/react";
+import { useLoginCard } from "./auth/login-card";
+import { signOut } from "@/app/lib/auth";
+import { useUser } from "@/app/lib/use-auth";
 
 const LINKS = [
-  ["Menu", "#menu"],
-  ["Signatures", "#signatures"],
-  ["The kitchen", "#kitchen"],
-  ["The room", "#room"],
-  ["Journal", "#journal"],
+  ["Menu", "/menu"],
+  ["Signatures", "/#signatures"],
+  ["The kitchen", "/#kitchen"],
+  ["The room", "/#room"],
+  ["Journal", "/#journal"],
 ];
 
 export function Nav() {
+  const router = useRouter();
+  const { open } = useLoginCard();
   const { scrollY, scrollYProgress } = useScroll();
   const [lifted, setLifted] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const user = useUser();
 
   useMotionValueEvent(scrollY, "change", (y) => setLifted(y > 40));
+
+  function handleSignOut() {
+    signOut();
+    setMenuOpen(false);
+    router.refresh();
+  }
 
   return (
     <>
@@ -54,7 +68,7 @@ export function Nav() {
         }`}
       >
         <nav className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-8 px-6 py-3 md:px-10">
-          <a href="#" className="flex shrink-0 items-baseline gap-2">
+          <Link href="/" className="flex shrink-0 items-baseline gap-2">
             <span className="font-display text-2xl leading-none tracking-[-0.02em] lowercase">
               milli
             </span>
@@ -62,51 +76,75 @@ export function Nav() {
             <span className="hidden text-[10px] leading-none tracking-[0.22em] text-muted uppercase sm:block">
               Lisboa
             </span>
-          </a>
+          </Link>
 
           <ul className="hidden items-center gap-8 text-[14px] text-muted lg:flex">
             {LINKS.map(([label, href]) => (
               <li key={href}>
-                <a
+                <Link
                   href={href}
                   className="group relative inline-block py-1 transition-colors hover:text-ink"
                 >
                   {label}
                   <span className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-ember transition-transform duration-300 group-hover:scale-x-100" />
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
 
-          <div className="flex shrink-0 items-center gap-3">
-            <a
-              href="#reserve"
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            {user ? (
+              <div className="hidden items-center gap-3 sm:flex">
+                <span className="rounded-full border border-basil/30 bg-basil/10 px-3.5 py-2 text-[12px] font-medium text-basil">
+                  {user}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="text-[13px] text-muted transition-colors hover:text-ink"
+                >
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={open}
+                className="hidden text-[13px] font-medium text-muted transition-colors hover:text-ink sm:block"
+              >
+                Sign in
+              </button>
+            )}
+
+            <Link
+              href="/#reserve"
               className="group inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-[13px] font-medium text-cream transition-colors hover:bg-ember"
             >
               Book a table
               <span className="transition-transform group-hover:translate-x-0.5">
                 →
               </span>
-            </a>
+            </Link>
+
             <button
               type="button"
-              onClick={() => setOpen((v) => !v)}
-              aria-expanded={open}
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-expanded={menuOpen}
               aria-label="Toggle menu"
               className="flex h-10 w-10 flex-col items-center justify-center gap-[5px] rounded-full border border-line lg:hidden"
             >
               <span
-                className={`h-px w-4 bg-ink transition-transform ${open ? "translate-y-[3px] rotate-45" : ""}`}
+                className={`h-px w-4 bg-ink transition-transform ${menuOpen ? "translate-y-[3px] rotate-45" : ""}`}
               />
               <span
-                className={`h-px w-4 bg-ink transition-transform ${open ? "-translate-y-[3px] -rotate-45" : ""}`}
+                className={`h-px w-4 bg-ink transition-transform ${menuOpen ? "-translate-y-[3px] -rotate-45" : ""}`}
               />
             </button>
           </div>
         </nav>
 
         <AnimatePresence>
-          {open && (
+          {menuOpen && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
@@ -116,16 +154,41 @@ export function Nav() {
             >
               <ul className="mx-auto w-full max-w-[1400px] px-6 py-3 md:px-10">
                 {LINKS.map(([label, href]) => (
-                  <li key={href} className="border-b border-line/70 last:border-0">
-                    <a
+                  <li key={href} className="border-b border-line/70">
+                    <Link
                       href={href}
-                      onClick={() => setOpen(false)}
+                      onClick={() => setMenuOpen(false)}
                       className="block py-3.5 font-display text-lg font-light"
                     >
                       {label}
-                    </a>
+                    </Link>
                   </li>
                 ))}
+                <li className="pt-4 pb-2">
+                  {user ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] text-basil">{user}</span>
+                      <button
+                        type="button"
+                        onClick={handleSignOut}
+                        className="text-[13px] text-muted underline underline-offset-2"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        open();
+                      }}
+                      className="w-full rounded-full border border-line py-3 text-sm font-medium"
+                    >
+                      Sign in
+                    </button>
+                  )}
+                </li>
               </ul>
             </motion.div>
           )}
