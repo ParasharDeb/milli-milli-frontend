@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { Reveal, RevealGroup, RevealItem } from "./reveal";
@@ -11,7 +12,7 @@ const DISHES = [
     alt: "Raw scarlet prawns dressed with lemon zest, sea salt and olive oil",
     name: "Scarlet prawn, lemon, olive oil",
     tag: "Raw bar",
-    price: "€16",
+    price: "₹1,450",
     tone: "text-ember",
   },
   {
@@ -19,7 +20,7 @@ const DISHES = [
     alt: "Charred spring leeks with hazelnuts and aged sheep cheese",
     name: "Charred leeks, hazelnut, aged sheep",
     tag: "From the hearth",
-    price: "€9",
+    price: "₹850",
     tone: "text-amber",
   },
   {
@@ -27,7 +28,7 @@ const DISHES = [
     alt: "Whole grilled sea bream with brown butter and capers",
     name: "Hearth bream, brown butter, capers",
     tag: "To share",
-    price: "€38",
+    price: "₹3,400",
     tone: "text-ember",
   },
   {
@@ -35,7 +36,7 @@ const DISHES = [
     alt: "A wedge of burnt honey tart with crème fraîche and honeycomb",
     name: "Burnt honey tart, crème fraîche",
     tag: "Sweet",
-    price: "€8",
+    price: "₹750",
     tone: "text-amber",
   },
 ];
@@ -79,13 +80,13 @@ export function Signatures() {
             </Reveal>
           </div>
           <Reveal delay={0.1}>
-            <a
-              href="#menu"
+            <Link
+              href="/menu"
               className="group inline-flex items-center gap-2 rounded-full border border-cream/25 px-6 py-3 text-sm font-medium transition-colors hover:border-amber hover:text-amber"
             >
               See the full menu
               <span className="transition-transform group-hover:translate-x-1">→</span>
-            </a>
+            </Link>
           </Reveal>
         </div>
 

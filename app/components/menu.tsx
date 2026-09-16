@@ -18,20 +18,20 @@ const SECTIONS: Record<string, Course[]> = {
     {
       name: "Charred leeks, hazelnut, aged sheep",
       note: "Vinaigrette made from last week's wine",
-      price: "9",
+      price: "850",
       dot: "bg-basil",
       badge: "V",
     },
     {
       name: "Scarlet prawn, lemon, olive oil",
       note: "Landed at Cascais this morning, served raw",
-      price: "16",
+      price: "1,450",
       dot: "bg-ember",
     },
     {
       name: "Bread, cultured butter, smoked salt",
       note: "Sourdough baked at seven, still warm at eight",
-      price: "5",
+      price: "450",
       dot: "bg-amber",
       badge: "V",
     },
@@ -40,21 +40,21 @@ const SECTIONS: Record<string, Course[]> = {
     {
       name: "Salmon, saffron couscous, avocado",
       note: "The plate the room is named for",
-      price: "24",
+      price: "2,200",
       dot: "bg-ember",
       badge: "Signature",
     },
     {
       name: "Grain bowl, market vegetables, herbs",
       note: "Whatever the growers had most of",
-      price: "14",
+      price: "1,250",
       dot: "bg-basil",
       badge: "V",
     },
     {
       name: "Hearth bream, brown butter, capers",
       note: "Whole fish, for two, thirty minutes",
-      price: "38",
+      price: "3,400",
       dot: "bg-terracotta",
       badge: "For 2",
     },
@@ -63,13 +63,13 @@ const SECTIONS: Record<string, Course[]> = {
     {
       name: "Burnt honey tart, crème fraîche",
       note: "Honey from the hills behind Sintra",
-      price: "8",
+      price: "750",
       dot: "bg-amber",
     },
     {
       name: "Sheep's milk ice cream, olive oil",
       note: "Three ingredients, one of them salt",
-      price: "7",
+      price: "650",
       dot: "bg-basil",
       badge: "V",
     },
@@ -101,7 +101,7 @@ export function Menu() {
           <Reveal delay={0.1} className="max-w-sm">
             <p className="text-[15px] leading-relaxed text-muted text-pretty">
               Order à la carte, or let the kitchen send everything for{" "}
-              <span className="font-medium text-ink">€58 a head</span>. Wine is
+              <span className="font-medium text-ink">₹5,400 a head</span>. Wine is
               poured by the glass from whatever bottles we opened first.
             </p>
           </Reveal>
@@ -172,7 +172,7 @@ export function Menu() {
                         <p className="mt-1.5 text-sm text-muted">{course.note}</p>
                       </div>
                       <span className="font-display text-xl tabular-nums">
-                        €{course.price}
+                        ₹{course.price}
                       </span>
                     </div>
                   </motion.li>
@@ -215,7 +215,7 @@ export function Menu() {
 
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-line bg-cream p-5">
-                  <p className="font-display text-3xl leading-none">€58</p>
+                  <p className="font-display text-3xl leading-none">₹5,400</p>
                   <p className="mt-2 text-[12px] leading-snug text-muted">
                     Full menu, per person
                   </p>

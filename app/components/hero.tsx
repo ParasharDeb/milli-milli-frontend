@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 
@@ -101,19 +102,19 @@ export function Hero() {
           </motion.p>
 
           <motion.div variants={line} className="mt-9 flex flex-wrap gap-3">
-            <a
-              href="#reserve"
+            <Link
+              href="/menu"
               className="group inline-flex items-center gap-2 rounded-full bg-ink px-7 py-4 text-sm font-medium text-cream shadow-lg shadow-ink/10 transition-all hover:bg-ember hover:shadow-xl hover:shadow-ember/25"
             >
-              Reserve a table
+              See tonight&apos;s menu
               <span className="transition-transform group-hover:translate-x-1">→</span>
-            </a>
-            <a
-              href="#menu"
+            </Link>
+            <Link
+              href="/reserve-table"
               className="inline-flex items-center gap-2 rounded-full border border-line bg-cream/60 px-7 py-4 text-sm font-medium backdrop-blur transition-colors hover:border-ink hover:bg-cream"
             >
-              See tonight&apos;s menu
-            </a>
+              Reserve a table
+            </Link>
           </motion.div>
 
           <motion.dl
@@ -210,7 +211,7 @@ export function Hero() {
                 <br />
                 avocado &amp; market tomato
               </p>
-              <p className="mt-1.5 font-display text-lg text-ember">€24</p>
+              <p className="mt-1.5 font-display text-lg text-ember">₹2,200</p>
             </motion.div>
           </motion.div>
         </motion.div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { Reveal } from "./reveal";
@@ -62,13 +63,13 @@ export function Room() {
             </dl>
           </Reveal>
           <Reveal delay={0.24}>
-            <a
-              href="#reserve"
+            <Link
+              href="/reserve-table"
               className="group mt-9 inline-flex items-center gap-2 rounded-full border border-ink px-6 py-3.5 text-sm font-medium transition-colors hover:bg-ink hover:text-cream"
             >
               Check availability
               <span className="transition-transform group-hover:translate-x-1">→</span>
-            </a>
+            </Link>
           </Reveal>
         </div>
 

@@ -1,17 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import Link from "next/link";
 import { motion } from "motion/react";
+import { BookingForm } from "./booking-form";
 import { Reveal } from "./reveal";
 
-const TIMES = ["18:30", "19:00", "19:30", "20:00", "20:30", "21:00"];
-const SOLD_OUT = new Set(["19:30", "20:00"]);
-
 export function Reserve() {
-  const [guests, setGuests] = useState(2);
-  const [time, setTime] = useState("19:00");
-
   return (
     <section
       id="reserve"
@@ -78,96 +73,17 @@ export function Reserve() {
 
         {/* booking card */}
         <Reveal delay={0.1}>
-          <form
-            onSubmit={(e) => e.preventDefault()}
-            className="rounded-[1.75rem] border border-cream/15 bg-cream/8 p-6 backdrop-blur-xl sm:p-8"
-          >
-            <p className="font-display text-2xl font-light">Book a table</p>
-            <p className="mt-1.5 text-[13px] text-cream/60">
-              Free to cancel up to 24 hours before.
-            </p>
-
-            <div className="mt-7 grid gap-5">
-              <div>
-                <label
-                  htmlFor="date"
-                  className="text-[11px] tracking-[0.18em] text-cream/55 uppercase"
-                >
-                  Date
-                </label>
-                <input
-                  id="date"
-                  type="date"
-                  defaultValue="2026-09-18"
-                  className="mt-2.5 w-full rounded-xl border border-cream/20 bg-ink/40 px-4 py-3 text-sm text-cream [color-scheme:dark] focus:border-amber focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <span className="text-[11px] tracking-[0.18em] text-cream/55 uppercase">
-                  Guests
-                </span>
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  {[1, 2, 3, 4, 5, 6].map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setGuests(n)}
-                      aria-pressed={guests === n}
-                      className={`h-10 w-10 rounded-full border text-sm transition-colors ${
-                        guests === n
-                          ? "border-amber bg-amber font-medium text-ink"
-                          : "border-cream/20 text-cream/75 hover:border-cream/50"
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <span className="text-[11px] tracking-[0.18em] text-cream/55 uppercase">
-                  Time
-                </span>
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  {TIMES.map((t) => {
-                    const gone = SOLD_OUT.has(t);
-                    return (
-                      <button
-                        key={t}
-                        type="button"
-                        disabled={gone}
-                        onClick={() => setTime(t)}
-                        aria-pressed={time === t}
-                        className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                          gone
-                            ? "cursor-not-allowed border-cream/10 text-cream/25 line-through"
-                            : time === t
-                              ? "border-amber bg-amber font-medium text-ink"
-                              : "border-cream/20 text-cream/75 hover:border-cream/50"
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="group mt-8 flex w-full items-center justify-center gap-2 rounded-full bg-ember px-7 py-4 text-sm font-medium text-cream transition-colors hover:bg-amber hover:text-ink"
+          <BookingForm />
+          <p className="mt-4 text-center text-[12px] text-cream/50">
+            Need a large table or the back room?{" "}
+            <Link
+              href="/reserve-table"
+              className="underline underline-offset-2 hover:text-amber"
             >
-              Request {guests === 1 ? "a table" : `a table for ${guests}`} at {time}
-              <span className="transition-transform group-hover:translate-x-1">→</span>
-            </button>
-
-            <p className="mt-4 text-center text-[12px] text-cream/45">
-              We confirm every booking by email within the hour.
-            </p>
-          </form>
+              See all the details
+            </Link>
+            .
+          </p>
         </Reveal>
       </div>
     </section>

@@ -10,6 +10,7 @@ import { useUser } from "@/app/lib/use-auth";
 
 const LINKS = [
   ["Menu", "/menu"],
+  ["Reserve", "/reserve-table"],
   ["Signatures", "/#signatures"],
   ["The kitchen", "/#kitchen"],
   ["The room", "/#room"],
@@ -117,7 +118,7 @@ export function Nav() {
             )}
 
             <Link
-              href="/#reserve"
+              href="/reserve-table"
               className="group inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-[13px] font-medium text-cream transition-colors hover:bg-ember"
             >
               Book a table
