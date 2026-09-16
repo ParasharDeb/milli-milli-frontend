@@ -11,6 +11,7 @@ import { useUser } from "@/app/lib/use-auth";
 const LINKS = [
   ["Menu", "/menu"],
   ["Reserve", "/reserve-table"],
+  ["Ask", "/chat"],
   ["Signatures", "/#signatures"],
   ["The kitchen", "/#kitchen"],
   ["The room", "/#room"],
