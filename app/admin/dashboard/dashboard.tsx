@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { signOut } from "@/app/lib/auth";
 import { useAdmin } from "@/app/lib/use-auth";
+import { fetchStats, type MenuStats } from "@/app/lib/menu-api";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
@@ -41,17 +42,23 @@ const STATUS_STYLES: Record<Booking["status"], string> = {
   Seated: "border-line bg-sand text-muted",
 };
 
-const PREP = [
-  { dish: "Scarlet prawn, lemon, olive oil", left: 8, of: 14 },
-  { dish: "Charred leeks, hazelnut, aged sheep", left: 19, of: 24 },
-  { dish: "Salmon, saffron couscous, avocado", left: 11, of: 30 },
-  { dish: "Hearth bream, brown butter, capers", left: 2, of: 6 },
-  { dish: "Burnt honey tart, crème fraîche", left: 16, of: 20 },
-];
 
 export function Dashboard() {
   const router = useRouter();
   const admin = useAdmin();
+  const [stats, setStats] = useState<MenuStats | null>(null);
+  const [statsFailed, setStatsFailed] = useState(false);
+
+  // Live menu composition, straight from Postgres via the backend.
+  useEffect(() => {
+    let active = true;
+    fetchStats()
+      .then((s) => active && setStats(s))
+      .catch(() => active && setStatsFailed(true));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // The proxy already blocks this route; this keeps the client honest too.
   useEffect(() => {
@@ -192,7 +199,7 @@ export function Dashboard() {
             </div>
           </motion.section>
 
-          {/* prep counts */}
+          {/* menu composition, read from the database */}
           <motion.section
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
@@ -200,41 +207,81 @@ export function Dashboard() {
             className="rounded-2xl border border-line bg-cream p-6"
           >
             <div className="flex items-center justify-between">
-              <h2 className="font-display text-xl font-light">Portions left</h2>
-              <span className="text-[13px] text-muted">Updated 18:04</span>
+              <h2 className="font-display text-xl font-light">Menu tonight</h2>
+              <span className="text-[13px] text-muted">
+                {stats ? `${stats.total} items live` : statsFailed ? "unavailable" : "loading…"}
+              </span>
             </div>
 
-            <ul className="mt-6 space-y-5">
-              {PREP.map((item) => {
-                const pct = Math.round((item.left / item.of) * 100);
-                const low = pct <= 35;
-                return (
-                  <li key={item.dish}>
-                    <div className="flex items-baseline justify-between gap-4">
-                      <p className="text-[14px] leading-snug">{item.dish}</p>
-                      <p
-                        className={`shrink-0 font-display text-base tabular-nums ${low ? "text-ember" : ""}`}
-                      >
-                        {item.left}
-                        <span className="text-muted">/{item.of}</span>
-                      </p>
-                    </div>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-sand">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.9, delay: 0.5, ease: EASE_OUT }}
-                        className={`h-full rounded-full ${low ? "bg-ember" : "bg-basil"}`}
-                      />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            {statsFailed && (
+              <p className="mt-5 rounded-xl border border-ember/30 bg-ember/5 px-4 py-3 text-[13px] text-muted">
+                Could not reach the kitchen service. Start the backend and reload.
+              </p>
+            )}
 
-            <button className="mt-7 w-full rounded-full border border-line px-5 py-3 text-[13px] font-medium transition-colors hover:border-ink">
-              Mark a dish as 86&apos;d
-            </button>
+            {stats && (
+              <>
+                <dl className="mt-6 grid grid-cols-3 gap-3">
+                  {[
+                    ["Food", stats.food],
+                    ["Bar & lounge", stats.drink],
+                    ["Vegetarian", stats.byDiet["Vegeterian"] ?? 0],
+                  ].map(([label, value]) => (
+                    <div key={String(label)} className="rounded-xl border border-line bg-parchment px-3 py-3">
+                      <dt className="text-[10.5px] tracking-[0.14em] text-muted uppercase">
+                        {label}
+                      </dt>
+                      <dd className="mt-1.5 font-display text-2xl leading-none font-light tabular-nums">
+                        {value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+
+                <p className="mt-7 text-[10.5px] tracking-[0.16em] text-muted uppercase">
+                  Heat spread · food dishes
+                </p>
+                <ul className="mt-3 space-y-2.5">
+                  {[0, 1, 2, 3, 4, 5].map((level) => {
+                    const count = stats.spiceSpread[String(level)] ?? 0;
+                    const max = Math.max(1, ...Object.values(stats.spiceSpread));
+                    return (
+                      <li key={level} className="flex items-center gap-3">
+                        <span className="w-10 shrink-0 text-[12px] text-muted tabular-nums">
+                          {level} / 5
+                        </span>
+                        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-sand">
+                          <motion.span
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(count / max) * 100}%` }}
+                            transition={{ duration: 0.9, delay: 0.5, ease: EASE_OUT }}
+                            className={`block h-full rounded-full ${level >= 3 ? "bg-ember" : "bg-basil"}`}
+                          />
+                        </span>
+                        <span className="w-6 shrink-0 text-right text-[12px] tabular-nums">
+                          {count}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                {stats.lowConfidenceSpice > 0 && (
+                  <p className="mt-6 rounded-xl border border-amber/40 bg-amber/10 px-4 py-3 text-[13px] leading-relaxed">
+                    <span className="font-medium">{stats.lowConfidenceSpice} dishes</span>{" "}
+                    have an unconfirmed heat level. The guest menu leaves the number
+                    off rather than guessing — worth a chef review.
+                  </p>
+                )}
+              </>
+            )}
+
+            <Link
+              href="/menu"
+              className="mt-7 block w-full rounded-full border border-line px-5 py-3 text-center text-[13px] font-medium transition-colors hover:border-ink"
+            >
+              View the guest menu
+            </Link>
           </motion.section>
         </div>
       </main>

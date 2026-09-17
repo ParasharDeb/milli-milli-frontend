@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ACCENT_CLASS, CATEGORIES } from "./menu-data";
+import { ACCENT_CLASS, CATEGORIES, type Category } from "./menu-data";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
@@ -52,19 +52,24 @@ function Chillies({ level, className }: { level: number; className: string }) {
   );
 }
 
-export function DishOrbit() {
+/**
+ * `categories` comes from the database via the menu page. The bundled
+ * CATEGORIES stay as the fallback so the page still renders if the backend
+ * is unreachable.
+ */
+export function DishOrbit({ categories = CATEGORIES }: { categories?: Category[] }) {
   const reduced = useReducedMotion();
-  const [categoryId, setCategoryId] = useState(CATEGORIES[0].id);
-  const [activeId, setActiveId] = useState(CATEGORIES[0].items[0].id);
+  const [categoryId, setCategoryId] = useState(categories[0]!.id);
+  const [activeId, setActiveId] = useState(categories[0]!.items[0]!.id);
 
-  const category = CATEGORIES.find((c) => c.id === categoryId) ?? CATEGORIES[0];
+  const category = categories.find((c) => c.id === categoryId) ?? categories[0]!;
   const accent = ACCENT_CLASS[category.accent];
   const active =
     category.items.find((d) => d.id === activeId) ?? category.items[0];
   const satellites = category.items.filter((d) => d.id !== active.id);
 
   function pickCategory(id: string) {
-    const next = CATEGORIES.find((c) => c.id === id);
+    const next = categories.find((c) => c.id === id);
     if (!next) return;
     setCategoryId(id);
     setActiveId(next.items[0].id);
@@ -81,7 +86,7 @@ export function DishOrbit() {
     <div>
       {/* category tabs */}
       <div className="flex flex-wrap gap-2 border-b border-line pb-6">
-        {CATEGORIES.map((cat) => {
+        {categories.map((cat) => {
           const on = cat.id === category.id;
           return (
             <button
@@ -122,9 +127,11 @@ export function DishOrbit() {
                 {category.label}
               </p>
 
-              <p className={`mt-5 font-display text-4xl leading-none ${accent.text}`}>
-                ₹{active.price}
-              </p>
+              {active.price != null && (
+                <p className={`mt-5 font-display text-4xl leading-none ${accent.text}`}>
+                  ₹{active.price}
+                </p>
+              )}
 
               <h3 className="mt-3 font-display text-[clamp(1.9rem,3.6vw,2.9rem)] leading-[1.05] font-light tracking-[-0.03em] text-balance">
                 {active.name}
@@ -270,6 +277,7 @@ export function DishOrbit() {
                     }
                     className="absolute inset-0 block"
                   >
+                    {dish.img ? (
                     <Image
                       src={dish.img}
                       alt={dish.name}
@@ -282,6 +290,14 @@ export function DishOrbit() {
                           : "drop-shadow-[0_14px_20px_rgba(21,18,16,0.2)]"
                       }`}
                     />
+                    ) : (
+                      <span
+                        aria-hidden
+                        className={`flex h-full w-full items-center justify-center rounded-full border ${accent.ring} bg-cream/70 font-display text-[2.4rem] font-light ${accent.text} shadow-[0_12px_20px_rgba(21,18,16,0.12)]`}
+                      >
+                        {dish.name.trim().charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </motion.span>
                 </motion.button>
               );
@@ -344,9 +360,11 @@ export function DishOrbit() {
                         {dish.desc}
                       </span>
                     </span>
-                    <span className="shrink-0 font-display text-lg tabular-nums">
-                      ₹{dish.price}
-                    </span>
+                    {dish.price != null && (
+                      <span className="shrink-0 font-display text-lg tabular-nums">
+                        ₹{dish.price}
+                      </span>
+                    )}
                   </button>
                 </motion.li>
               );

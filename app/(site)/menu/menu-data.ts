@@ -2,8 +2,10 @@ export type Dish = {
   id: string;
   name: string;
   desc: string;
-  price: number;
-  img: string;
+  /** Absent for database-backed dishes: the POS export carries no price. */
+  price?: number;
+  /** Absent when no photograph matches the dish. */
+  img?: string;
   tags: string[];
   /** 0 = none, 3 = hot. Drawn as filled chilli pips. */
   spice: 0 | 1 | 2 | 3;

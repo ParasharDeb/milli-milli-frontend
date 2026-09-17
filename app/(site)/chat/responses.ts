@@ -21,8 +21,10 @@ const ALL: { dish: Dish; category: string }[] = CATEGORIES.flatMap((c) =>
 
 const HEAT_WORD = ["not spicy at all", "gently spiced", "properly spicy", "hot"];
 
-function inr(n: number) {
-  return `₹${n.toLocaleString("en-IN")}`;
+// `price` is optional now that dishes can come from the database, which carries
+// no prices. The bundled CATEGORIES this module reads always have one.
+function inr(n?: number) {
+  return n == null ? "price on request" : `₹${n.toLocaleString("en-IN")}`;
 }
 
 function describe(dish: Dish, category: string): Reply {
@@ -118,7 +120,7 @@ export function reply(input: string): Reply {
   }
 
   if (/\b(price|cost|how much|expensive|cheap|budget)\b/.test(text)) {
-    const prices = ALL.map((e) => e.dish.price);
+    const prices = ALL.map((e) => e.dish.price).filter((n): n is number => n != null);
     return {
       text: `Dishes run from ${inr(Math.min(...prices))} for a tandoori roti to ${inr(Math.max(...prices))} for the prawn biryani.\n\nIf you would rather not choose, the full thali is ₹5,400 a head and the kitchen sends everything.`,
       link: { href: "/menu", label: "See the full menu" },

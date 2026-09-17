@@ -4,6 +4,14 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { PixelBot } from "@/app/components/pixel-bot";
+import {
+  DIET_LABEL,
+  isVeg,
+  sendChat,
+  spiceLabel,
+  type MenuItem,
+  type RecommendationGroup,
+} from "@/app/lib/menu-api";
 import { OPENING, reply, type Reply } from "./responses";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
@@ -14,9 +22,15 @@ type Message = {
   text: string;
   chips?: string[];
   link?: Reply["link"];
+  /** Present when the backend answered with per-constraint recommendations. */
+  groups?: RecommendationGroup[];
+  /** Dishes the grounded answer drew on. */
+  dishes?: MenuItem[];
+  /** The backend could not be reached and this came from the bundled replies. */
+  offline?: boolean;
 };
 
-/** Renders the **bold** and bullet lines the canned replies use. */
+/** Renders the **bold** and bullet lines the replies use. */
 function RichText({ text }: { text: string }) {
   return (
     <>
@@ -53,6 +67,67 @@ function RichText({ text }: { text: string }) {
   );
 }
 
+function DishCard({ item }: { item: MenuItem }) {
+  const heat = spiceLabel(item);
+  const veg = isVeg(item);
+
+  return (
+    <li className="rounded-xl border border-line bg-parchment px-3.5 py-2.5">
+      <p className="text-[14px] leading-snug font-medium">{item.name}</p>
+      {item.desc && (
+        <p className="mt-1 text-[12.5px] leading-snug text-muted">{item.desc}</p>
+      )}
+      <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10.5px] tracking-[0.12em] text-muted uppercase">
+        <span className={veg ? "text-basil" : "text-ember"}>
+          {DIET_LABEL[item.diet] ?? item.diet}
+        </span>
+        {/* Heat is omitted entirely when the kitchen data was never confident. */}
+        {heat && (
+          <>
+            <span aria-hidden>·</span>
+            <span>{heat}</span>
+          </>
+        )}
+        <span aria-hidden>·</span>
+        <span>{item.cuisine}</span>
+      </p>
+    </li>
+  );
+}
+
+function GroupBlock({ group }: { group: RecommendationGroup }) {
+  return (
+    <div className="mt-3.5 first:mt-2">
+      <p className="flex items-baseline gap-2 text-[11px] tracking-[0.14em] text-muted uppercase">
+        <span className="h-px w-5 bg-ember" />
+        {group.label}
+        {group.count > 1 && (
+          <span className="normal-case tracking-normal">· {group.count} guests</span>
+        )}
+      </p>
+
+      {group.recommendations.length > 0 ? (
+        <ul className="mt-2 space-y-2">
+          {group.recommendations.map((rec) => (
+            <DishCard key={rec.item.id} item={rec.item} />
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-[13px] text-muted">
+          Nothing on tonight&apos;s menu fits this one — we never swap a dietary
+          requirement for something close.
+        </p>
+      )}
+
+      {group.relaxations.length > 0 && (
+        <p className="mt-2 text-[12px] text-muted italic">
+          Widened the search to fill this one.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function TypingDots() {
   return (
     <span className="flex items-center gap-1.5 py-1" aria-label="Typing">
@@ -73,6 +148,13 @@ function TypingDots() {
   );
 }
 
+function headline(groups: RecommendationGroup[], partySize: number): string {
+  const filled = groups.filter((g) => g.recommendations.length > 0).length;
+  if (filled === 0) return "I could not put anything together for that, I'm afraid.";
+  const who = partySize > 0 ? ` for ${partySize}` : "";
+  return `Here is what I would send out${who} — three options against each thing you asked for.`;
+}
+
 export function ChatRoom() {
   const reduced = useReducedMotion();
   const [messages, setMessages] = useState<Message[]>([
@@ -89,38 +171,59 @@ export function ChatRoom() {
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, thinking]);
 
-  function send(raw: string) {
+  async function send(raw: string) {
     const text = raw.trim();
     if (!text || thinking) return;
 
-    const mine: Message = { id: nextId.current++, from: "you", text };
-    setMessages((m) => [...m, mine]);
+    setMessages((m) => [...m, { id: nextId.current++, from: "you", text }]);
     setDraft("");
     setThinking(true);
 
-    // A beat, so it reads like someone is actually writing.
-    const answer = reply(text);
-    const delay = Math.min(1400, 450 + answer.text.length * 4);
-    window.setTimeout(() => {
+    try {
+      const res = await sendChat(text);
+
+      setMessages((m) => [
+        ...m,
+        res.kind === "recommendations"
+          ? {
+              id: nextId.current++,
+              from: "bot",
+              text: headline(res.groups, res.partySize),
+              groups: res.groups,
+              chips: ["Something spicier", "Anything vegetarian?", "What is in it?"],
+              link: { href: "/reserve-table", label: "Book a table" },
+            }
+          : {
+              id: nextId.current++,
+              from: "bot",
+              text: res.answer,
+              dishes: res.dishes,
+              chips: res.chips,
+            },
+      ]);
+    } catch (error) {
+      // The kitchen still has to answer. Fall back to the bundled replies rather
+      // than showing a dead end, and say so instead of passing them off as live.
+      console.error("[chat] backend unreachable:", error);
+      const canned = reply(text);
       setMessages((m) => [
         ...m,
         {
           id: nextId.current++,
           from: "bot",
-          text: answer.text,
-          chips: answer.chips,
-          link: answer.link,
+          text: canned.text,
+          chips: canned.chips,
+          link: canned.link,
+          offline: true,
         },
       ]);
+    } finally {
       setThinking(false);
-    }, delay);
+    }
   }
 
-  const lastChips = !thinking
-    ? messages[messages.length - 1]?.from === "bot"
-      ? messages[messages.length - 1].chips
-      : undefined
-    : undefined;
+  const last = messages[messages.length - 1];
+  const lastChips = !thinking && last?.from === "bot" ? last.chips : undefined;
 
   return (
     <div className="overflow-hidden rounded-[1.75rem] border border-line bg-cream shadow-xl shadow-ink/5">
@@ -134,12 +237,10 @@ export function ChatRoom() {
           <PixelBot size={40} talking={thinking} />
         </div>
         <div className="relative min-w-0 flex-1">
-          <p className="font-display text-lg leading-tight font-light">
-            The pass
-          </p>
+          <p className="font-display text-lg leading-tight font-light">The pass</p>
           <p className="mt-0.5 flex items-center gap-2 text-[12px] text-cream/60">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber" />
-            {thinking ? "typing…" : "online · knows tonight's menu"}
+            {thinking ? "reading the menu…" : "online · knows tonight's menu"}
           </p>
         </div>
         <Link
@@ -179,6 +280,25 @@ export function ChatRoom() {
                   }`}
                 >
                   <RichText text={m.text} />
+
+                  {m.groups?.map((group) => (
+                    <GroupBlock key={group.id} group={group} />
+                  ))}
+
+                  {m.dishes && m.dishes.length > 0 && (
+                    <ul className="mt-3 space-y-2">
+                      {m.dishes.map((dish) => (
+                        <DishCard key={dish.id} item={dish} />
+                      ))}
+                    </ul>
+                  )}
+
+                  {m.offline && (
+                    <p className="mt-3 border-t border-line pt-2 text-[12px] text-muted">
+                      The kitchen service is unreachable, so that came from the
+                      bundled menu rather than tonight&apos;s live data.
+                    </p>
+                  )}
                 </div>
 
                 {m.link && (
@@ -221,7 +341,7 @@ export function ChatRoom() {
         <AnimatePresence mode="wait">
           {lastChips && lastChips.length > 0 && (
             <motion.div
-              key={messages[messages.length - 1].id}
+              key={last!.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
@@ -245,7 +365,7 @@ export function ChatRoom() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            send(draft);
+            void send(draft);
           }}
           className="flex gap-2"
         >
@@ -256,7 +376,7 @@ export function ChatRoom() {
             id="ask"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Ask about a dish, heat, or what to order…"
+            placeholder="Try: 5 of us, 2 veg, 1 spicy non-veg…"
             autoComplete="off"
             className="min-w-0 flex-1 rounded-full border border-line bg-parchment px-5 py-3.5 text-sm placeholder:text-muted/60 focus:border-ember focus:outline-none"
           />
@@ -271,8 +391,9 @@ export function ChatRoom() {
         </form>
 
         <p className="mt-3 text-[12px] text-muted">
-          <span className="font-medium text-ink">Demo build.</span> Replies are
-          canned and matched against tonight&apos;s menu — no model behind them yet.
+          Answers come from tonight&apos;s actual menu — every dish is looked up
+          before it is suggested, and heat is only quoted when the kitchen
+          recorded it.
         </p>
       </div>
     </div>

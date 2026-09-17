@@ -1,16 +1,36 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Reveal } from "@/app/components/reveal";
+import { fetchItems } from "@/app/lib/menu-api";
 import { DishOrbit } from "./dish-orbit";
+import { buildCategories } from "./menu-adapter";
 import { MenuWelcome } from "./menu-welcome";
 
 export const metadata: Metadata = {
   title: "Tonight's menu — Milli",
   description:
-    "Rice dishes, breads, gravies and desserts — cooked to order from whatever the morning market gave us.",
+    "Small plates, mains, breads and desserts — cooked to order from whatever the morning market gave us.",
 };
 
-export default function MenuPage() {
+/**
+ * The menu is read from Postgres through the backend at request time. If the
+ * backend is unreachable the orbit falls back to its bundled dishes, so the
+ * page never fails to render over a dropped API call.
+ */
+async function loadCategories() {
+  try {
+    const { items } = await fetchItems({ group: "food" });
+    const categories = buildCategories(items);
+    return categories.length > 0 ? categories : undefined;
+  } catch (error) {
+    console.error("[menu] backend unreachable, using bundled dishes:", error);
+    return undefined;
+  }
+}
+
+export default async function MenuPage() {
+  const categories = await loadCategories();
+
   return (
     <>
       <MenuWelcome />
@@ -62,7 +82,7 @@ export default function MenuPage() {
 
       {/* the orbit */}
       <section className="mx-auto w-full max-w-[1400px] px-6 py-10 md:px-10 lg:py-14">
-        <DishOrbit />
+        <DishOrbit categories={categories} />
       </section>
 
       {/* closing note */}
