@@ -8,7 +8,7 @@
 
 import { getSessionId } from "./session";
 
-const SERVER_BASE = process.env.BACKEND_URL ?? "http://localhost:4000";
+const SERVER_BASE = process.env.BACKEND_URL ?? "https://mili-mili-backend.onrender.com";
 
 function url(path: string): string {
   return typeof window === "undefined" ? `${SERVER_BASE}${path}` : path;
