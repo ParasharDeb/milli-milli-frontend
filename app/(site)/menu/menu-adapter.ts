@@ -54,15 +54,16 @@ function toPips(spice: number, confidence: number | null): Dish["spice"] {
 
 function toTags(item: MenuItem): string[] {
   const tags: string[] = [];
-  if (item.diet === "Vegeterian" || item.diet === "Jain") tags.push("Vegetarian");
+  if (item.diet === "Vegetarian" || item.diet === "Jain") tags.push("Vegetarian");
   else if (item.diet === "OnlyFish") tags.push("Seafood");
-  else if (item.diet === "Eggeterian") tags.push("Contains egg");
+  else if (item.diet === "Eggetarian") tags.push("Contains egg");
 
-  const serves = item.serves ?? [];
-  if (serves.length) {
-    const low = Math.min(...serves);
-    const high = Math.max(...serves);
-    if (high > 1) tags.push(low === high ? `Serves ${low}` : `Serves ${low}-${high}`);
+  if (item.servesMax > 1) {
+    tags.push(
+      item.servesMin === item.servesMax
+        ? `Serves ${item.servesMin}`
+        : `Serves ${item.servesMin}-${item.servesMax}`,
+    );
   }
 
   for (const taste of item.tasteTags.slice(0, 2)) {
@@ -76,7 +77,10 @@ function toDish(item: MenuItem): Dish {
     id: item.id,
     name: item.name,
     desc: item.desc?.trim() || `${item.cuisine} ${item.course.toLowerCase()}, cooked to order.`,
-    img: imageFor(item.name),
+    // A photograph extracted from the POS export beats the keyword-matched
+    // stock library, which only covers 16 dishes.
+    img: item.imageUrl ?? imageFor(item.name),
+    price: item.price ?? undefined,
     tags: toTags(item),
     spice: toPips(item.spice, item.spiceConfidence),
   };

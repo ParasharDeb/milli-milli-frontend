@@ -7,12 +7,17 @@ import { PixelBot } from "@/app/components/pixel-bot";
 import {
   DIET_LABEL,
   isVeg,
+  priceLabel,
   sendChat,
   spiceLabel,
+  type CartView,
+  type Combo,
   type MenuItem,
   type RecommendationGroup,
 } from "@/app/lib/menu-api";
+import { useCart } from "@/app/lib/cart-context";
 import { OPENING, reply, type Reply } from "./responses";
+import { ComboBlock } from "./combo-block";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
@@ -24,10 +29,17 @@ type Message = {
   link?: Reply["link"];
   /** Present when the backend answered with per-constraint recommendations. */
   groups?: RecommendationGroup[];
+  /** Three adjustable combos. */
+  combos?: Combo[];
   /** Dishes the grounded answer drew on. */
   dishes?: MenuItem[];
   /** The backend could not be reached and this came from the bundled replies. */
   offline?: boolean;
+  /** Set on a reply that changed the order, so the confirmation can be shown. */
+  cart?: CartView;
+  added?: MenuItem[];
+  /** Set when the backend refused to guess which dish was meant. */
+  options?: { label: string; message: string; item: MenuItem }[];
 };
 
 /** Renders the **bold** and bullet lines the replies use. */
@@ -70,27 +82,50 @@ function RichText({ text }: { text: string }) {
 function DishCard({ item }: { item: MenuItem }) {
   const heat = spiceLabel(item);
   const veg = isVeg(item);
+  const price = priceLabel(item);
+  const { add, busy } = useCart();
+  const [added, setAdded] = useState(false);
+
+  async function handleAdd() {
+    await add(item.id);
+    setAdded(true);
+    window.setTimeout(() => setAdded(false), 1500);
+  }
 
   return (
     <li className="rounded-xl border border-line bg-parchment px-3.5 py-2.5">
-      <p className="text-[14px] leading-snug font-medium">{item.name}</p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[14px] leading-snug font-medium">{item.name}</p>
+        {price && <span className="shrink-0 text-[13px] tabular-nums text-muted">{price}</span>}
+      </div>
       {item.desc && (
         <p className="mt-1 text-[12.5px] leading-snug text-muted">{item.desc}</p>
       )}
-      <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10.5px] tracking-[0.12em] text-muted uppercase">
-        <span className={veg ? "text-basil" : "text-ember"}>
-          {DIET_LABEL[item.diet] ?? item.diet}
-        </span>
-        {/* Heat is omitted entirely when the kitchen data was never confident. */}
-        {heat && (
-          <>
-            <span aria-hidden>·</span>
-            <span>{heat}</span>
-          </>
-        )}
-        <span aria-hidden>·</span>
-        <span>{item.cuisine}</span>
-      </p>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10.5px] tracking-[0.12em] text-muted uppercase">
+          <span className={veg ? "text-basil" : "text-ember"}>
+            {DIET_LABEL[item.diet] ?? item.diet}
+          </span>
+          {/* Heat is omitted entirely when the kitchen data was never confident. */}
+          {heat && (
+            <>
+              <span aria-hidden>·</span>
+              <span>{heat}</span>
+            </>
+          )}
+          <span aria-hidden>·</span>
+          <span>{item.cuisine}</span>
+        </p>
+
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={busy || added}
+          className="shrink-0 rounded-full border border-ink/15 px-3 py-1 text-[11px] font-medium text-ink/70 transition-colors hover:border-ember hover:text-ember disabled:opacity-60"
+        >
+          {added ? "Added ✓" : "Add to order"}
+        </button>
+      </div>
     </li>
   );
 }
@@ -157,6 +192,9 @@ function headline(groups: RecommendationGroup[], partySize: number): string {
 
 export function ChatRoom() {
   const reduced = useReducedMotion();
+  // A reply that changes the order carries the whole new cart, so the nav badge
+  // updates from it rather than refetching.
+  const { apply } = useCart();
   const [messages, setMessages] = useState<Message[]>([
     { id: 0, from: "bot", text: OPENING.text, chips: OPENING.chips },
   ]);
@@ -181,26 +219,79 @@ export function ChatRoom() {
 
     try {
       const res = await sendChat(text);
+      const id = nextId.current++;
+      let message: Message;
 
-      setMessages((m) => [
-        ...m,
-        res.kind === "recommendations"
-          ? {
-              id: nextId.current++,
-              from: "bot",
-              text: headline(res.groups, res.partySize),
-              groups: res.groups,
-              chips: ["Something spicier", "Anything vegetarian?", "What is in it?"],
-              link: { href: "/reserve-table", label: "Book a table" },
-            }
-          : {
-              id: nextId.current++,
-              from: "bot",
-              text: res.answer,
-              dishes: res.dishes,
-              chips: res.chips,
-            },
-      ]);
+      switch (res.kind) {
+        case "recommendations":
+          message = {
+            id,
+            from: "bot",
+            text: headline(res.groups, res.partySize),
+            groups: res.groups,
+            chips: ["Something spicier", "Anything vegetarian?", "Add the first one"],
+            link: { href: "/reserve-table", label: "Book a table" },
+          };
+          break;
+
+        // A composed suggestion. It reuses the recommendation group shape, so it
+        // renders through exactly the same cards -- only the headline differs,
+        // because here the kitchen actually wrote one.
+        case "advice":
+          message = {
+            id,
+            from: "bot",
+            text: res.answer,
+            groups: res.groups,
+            chips: res.chips,
+          };
+          break;
+
+        case "combos":
+          message = {
+            id,
+            from: "bot",
+            text: res.answer,
+            combos: res.combos,
+            chips: res.chips,
+          };
+          break;
+
+        case "cart":
+          apply(res.cart);
+          message = {
+            id,
+            from: "bot",
+            text: res.answer,
+            cart: res.cart,
+            added: res.changed,
+            chips: res.chips,
+          };
+          break;
+
+        // The backend would not guess between two dishes. Each option's message
+        // is a ready-made reply, so tapping one resolves it on an exact name.
+        case "clarify":
+          message = {
+            id,
+            from: "bot",
+            text: res.answer,
+            options: res.options,
+            chips: res.chips,
+          };
+          break;
+
+        default:
+          message = {
+            id,
+            from: "bot",
+            text: res.answer,
+            dishes: res.dishes,
+            chips: res.chips,
+          };
+      }
+
+      setMessages((m) => [...m, message]);
     } catch (error) {
       // The kitchen still has to answer. Fall back to the bundled replies rather
       // than showing a dead end, and say so instead of passing them off as live.
@@ -271,7 +362,8 @@ export function ChatRoom() {
                 </span>
               )}
 
-              <div className={m.from === "you" ? "max-w-[82%]" : "max-w-[86%]"}>
+              {/* Three combos side by side need the full row. */}
+              <div className={m.from === "you" ? "max-w-[82%]" : m.combos?.length ? "min-w-0 flex-1" : "max-w-[86%]"}>
                 <div
                   className={`rounded-2xl px-4 py-3 text-[15px] leading-relaxed ${
                     m.from === "bot"
@@ -285,12 +377,41 @@ export function ChatRoom() {
                     <GroupBlock key={group.id} group={group} />
                   ))}
 
+                  {m.combos && m.combos.length > 0 && <ComboBlock combos={m.combos} />}
+
                   {m.dishes && m.dishes.length > 0 && (
                     <ul className="mt-3 space-y-2">
                       {m.dishes.map((dish) => (
                         <DishCard key={dish.id} item={dish} />
                       ))}
                     </ul>
+                  )}
+
+                  {m.options && m.options.length > 0 && (
+                    <ul className="mt-3 space-y-2">
+                      {m.options.map((option) => (
+                        <DishCard key={option.item.id} item={option.item} />
+                      ))}
+                    </ul>
+                  )}
+
+                  {m.added && m.added.length > 0 && (
+                    <div className="mt-3 border-t border-line pt-3">
+                      <ul className="space-y-2">
+                        {m.added.map((dish) => (
+                          <DishCard key={dish.id} item={dish} />
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {m.cart && m.cart.lines.length > 0 && (
+                    <p className="mt-3 border-t border-line pt-2 text-[12px] text-muted">
+                      In your order:{" "}
+                      {m.cart.lines.map((l) => `${l.qty} x ${l.item.name}`).join(", ")}
+                      {m.cart.subtotal != null &&
+                        ` · ₹${Math.round(m.cart.subtotal).toLocaleString("en-IN")}`}
+                    </p>
                   )}
 
                   {m.offline && (

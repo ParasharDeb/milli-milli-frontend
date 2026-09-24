@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { useCart } from "@/app/lib/cart-context";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ACCENT_CLASS, CATEGORIES, type Category } from "./menu-data";
 
@@ -62,11 +63,28 @@ export function DishOrbit({ categories = CATEGORIES }: { categories?: Category[]
   const [categoryId, setCategoryId] = useState(categories[0]!.id);
   const [activeId, setActiveId] = useState(categories[0]!.items[0]!.id);
 
+  const { add, busy } = useCart();
+  const [justAdded, setJustAdded] = useState(false);
+
   const category = categories.find((c) => c.id === categoryId) ?? categories[0]!;
   const accent = ACCENT_CLASS[category.accent];
   const active =
     category.items.find((d) => d.id === activeId) ?? category.items[0];
   const satellites = category.items.filter((d) => d.id !== active.id);
+
+  /**
+   * `Dish.id` is the real item uuid when the page rendered from the API. The
+   * bundled fallback menu uses slugs like "rice-biryani", which the backend
+   * would reject -- so the button only acts when the id looks like a uuid.
+   */
+  const canOrder = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(active.id);
+
+  async function handleAdd() {
+    if (!canOrder) return;
+    await add(active.id);
+    setJustAdded(true);
+    window.setTimeout(() => setJustAdded(false), 1600);
+  }
 
   function pickCategory(id: string) {
     const next = categories.find((c) => c.id === id);
@@ -163,10 +181,14 @@ export function DishOrbit({ categories = CATEGORIES }: { categories?: Category[]
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <button
               type="button"
-              className="group inline-flex items-center gap-2 rounded-full bg-ink px-7 py-3.5 text-sm font-medium text-cream transition-colors hover:bg-ember"
+              onClick={handleAdd}
+              disabled={busy || justAdded || !canOrder}
+              className="group inline-flex items-center gap-2 rounded-full bg-ink px-7 py-3.5 text-sm font-medium text-cream transition-colors hover:bg-ember disabled:opacity-70"
             >
-              Add to order
-              <span className="transition-transform group-hover:translate-x-1">→</span>
+              {justAdded ? "Added to your order" : "Add to order"}
+              <span className="transition-transform group-hover:translate-x-1">
+                {justAdded ? "✓" : "→"}
+              </span>
             </button>
 
             <div className="flex items-center gap-2">

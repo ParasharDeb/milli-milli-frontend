@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "motion/react";
 import { useLoginCard } from "./auth/login-card";
+import { useCartDrawer } from "./cart-drawer";
+import { useCart } from "@/app/lib/cart-context";
 import { signOut } from "@/app/lib/auth";
 import { useUser } from "@/app/lib/use-auth";
 
@@ -21,6 +23,8 @@ const LINKS = [
 export function Nav() {
   const router = useRouter();
   const { open } = useLoginCard();
+  const { open: openCart } = useCartDrawer();
+  const { cart } = useCart();
   const { scrollY, scrollYProgress } = useScroll();
   const [lifted, setLifted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -117,6 +121,30 @@ export function Nav() {
                 Sign in
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={openCart}
+              aria-label={`Your order, ${cart?.totalItems ?? 0} items`}
+              className="relative inline-flex items-center justify-center rounded-full p-2.5 text-ink/70 transition-colors hover:bg-ink/5 hover:text-ink"
+            >
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M3 6h2l2.4 10.4a2 2 0 0 0 2 1.6h7.5a2 2 0 0 0 2-1.55L20.5 9H6"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="10" cy="20" r="1.2" fill="currentColor" />
+                <circle cx="17" cy="20" r="1.2" fill="currentColor" />
+              </svg>
+              {(cart?.totalItems ?? 0) > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-ember px-1 text-[10px] font-medium tabular-nums text-cream">
+                  {cart!.totalItems}
+                </span>
+              )}
+            </button>
 
             <Link
               href="/reserve-table"

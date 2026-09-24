@@ -225,7 +225,7 @@ export function Dashboard() {
                   {[
                     ["Food", stats.food],
                     ["Bar & lounge", stats.drink],
-                    ["Vegetarian", stats.byDiet["Vegeterian"] ?? 0],
+                    ["Vegetarian", stats.byDiet["Vegetarian"] ?? 0],
                   ].map(([label, value]) => (
                     <div key={String(label)} className="rounded-xl border border-line bg-parchment px-3 py-3">
                       <dt className="text-[10.5px] tracking-[0.14em] text-muted uppercase">
