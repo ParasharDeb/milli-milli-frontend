@@ -83,3 +83,33 @@ body {
     scroll-behavior: auto;
   }
 }
+
+/* A band of light passing over muted text, for "thinking" states */
+@utility shimmer {
+  background: linear-gradient(
+    100deg,
+    var(--color-muted) 30%,
+    var(--color-ember) 50%,
+    var(--color-muted) 70%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.2s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer {
+    animation: none;
+  }
+}

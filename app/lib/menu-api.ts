@@ -119,6 +119,9 @@ export type CartView = {
   complete: boolean;
 };
 
+/** The assistant's single "bread or rice with that?" of the visit. */
+export type FollowUp = { question: string; options: MenuItem[]; chips: string[] };
+
 export type ChatResponse =
   | {
       kind: "recommendations";
@@ -168,6 +171,7 @@ export type ChatResponse =
       cart: CartView;
       chips: string[];
       meta: ChatMeta;
+      followUp?: FollowUp;
     }
   /** The backend refused to guess between dishes. Each option is a ready reply. */
   | {
@@ -274,6 +278,18 @@ export function addManyToCart(lines: { itemId: string; qty: number }[]) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ lines }),
+  });
+}
+
+/**
+ * Asks whether anything should go beside dishes just added from a button.
+ * Null once it has been asked this visit, or when nothing fits.
+ */
+export function fetchFollowUp(itemIds: string[]) {
+  return request<{ followUp: FollowUp | null }>("/api/cart/follow-up", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ itemIds }),
   });
 }
 

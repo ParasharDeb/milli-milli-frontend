@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Stepper } from "@/app/components/stepper";
 import { useCart } from "@/app/lib/cart-context";
 import { DIET_LABEL, isVeg, priceLabel, type Combo } from "@/app/lib/menu-api";
+import { useAfterAdd } from "./after-add";
 
 /**
  * Three combos, side by side, each three dishes with a quantity stepper.
@@ -24,6 +25,7 @@ export function ComboBlock({ combos }: { combos: Combo[] }) {
 
 function ComboCard({ combo, index }: { combo: Combo; index: number }) {
   const { addMany, busy } = useCart();
+  const afterAdd = useAfterAdd();
   const [qty, setQty] = useState<number[]>(() => combo.items.map((i) => i.qty));
   const [added, setAdded] = useState(false);
 
@@ -34,6 +36,7 @@ function ComboCard({ combo, index }: { combo: Combo; index: number }) {
   async function handleAdd() {
     await addMany(combo.items.map(({ item }, i) => ({ itemId: item.id, qty: qty[i]! })));
     setAdded(true);
+    afterAdd(combo.items.filter((_, i) => qty[i]! > 0).map(({ item }) => item.id));
     window.setTimeout(() => setAdded(false), 1500);
   }
 
