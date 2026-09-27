@@ -25,6 +25,7 @@ import {
 } from "@/app/lib/menu-api";
 import { useCart } from "@/app/lib/cart-context";
 import { OPENING, reply, type Reply } from "./responses";
+import { MENU_CARDS, quickPick } from "./quick-picks";
 import { ComboBlock } from "./combo-block";
 import { AfterAddContext, useAfterAdd } from "./after-add";
 
@@ -43,6 +44,10 @@ type Message = {
   combos?: Combo[];
   /** Dishes the grounded answer drew on. */
   dishes?: MenuItem[];
+  /** Cards for things the cart cannot take, such as sheesha. */
+  browseOnly?: boolean;
+  /** Food / Drinks / Sheesha cards to browse the menu from. */
+  menuCards?: boolean;
   /** The backend could not be reached and this came from the bundled replies. */
   offline?: boolean;
   /** Set on a reply that changed the order, so the confirmation can be shown. */
@@ -112,7 +117,7 @@ function RichText({ text }: { text: string }) {
   );
 }
 
-function DishCard({ item }: { item: MenuItem }) {
+function DishCard({ item, browseOnly }: { item: MenuItem; browseOnly?: boolean }) {
   const heat = spiceLabel(item);
   const veg = isVeg(item);
   const price = priceLabel(item);
@@ -142,9 +147,11 @@ function DishCard({ item }: { item: MenuItem }) {
       )}
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10.5px] tracking-[0.12em] text-muted uppercase">
-          <span className={veg ? "text-basil" : "text-ember"}>
-            {DIET_LABEL[item.diet] ?? item.diet}
-          </span>
+          {item.diet && (
+            <span className={veg ? "text-basil" : "text-ember"}>
+              {DIET_LABEL[item.diet] ?? item.diet}
+            </span>
+          )}
           {/* Heat is omitted entirely when the kitchen data was never confident. */}
           {heat && (
             <>
@@ -152,10 +159,11 @@ function DishCard({ item }: { item: MenuItem }) {
               <span>{heat}</span>
             </>
           )}
-          <span aria-hidden>·</span>
+          {item.diet && <span aria-hidden>·</span>}
           <span>{item.cuisine}</span>
         </p>
 
+        {!browseOnly && (
         <motion.button
           type="button"
           onClick={handleAdd}
@@ -180,6 +188,7 @@ function DishCard({ item }: { item: MenuItem }) {
             </motion.span>
           </AnimatePresence>
         </motion.button>
+        )}
       </div>
     </motion.li>
   );
@@ -221,11 +230,39 @@ function GroupBlock({ group }: { group: RecommendationGroup }) {
   );
 }
 
-function DishList({ items }: { items: MenuItem[] }) {
+function DishList({ items, browseOnly }: { items: MenuItem[]; browseOnly?: boolean }) {
   return (
     <motion.ul variants={reveal} className="mt-3 grid gap-2 sm:grid-cols-2">
       {items.map((dish) => (
-        <DishCard key={dish.id} item={dish} />
+        <DishCard key={dish.id} item={dish} browseOnly={browseOnly} />
+      ))}
+    </motion.ul>
+  );
+}
+
+function MenuCards({ onPick, disabled }: { onPick: (text: string) => void; disabled: boolean }) {
+  return (
+    <motion.ul variants={reveal} className="mt-3 grid gap-2 sm:grid-cols-3">
+      {MENU_CARDS.map((card) => (
+        <motion.li key={card.label} variants={deal}>
+          <motion.button
+            type="button"
+            onClick={() => onPick(card.label)}
+            disabled={disabled}
+            whileHover={{ y: -3 }}
+            whileTap={{ scale: 0.97 }}
+            className="group flex w-full items-center gap-3 rounded-xl border border-line bg-parchment px-3.5 py-3 text-left transition-[border-color,box-shadow] hover:border-ember/50 hover:shadow-md hover:shadow-ember/10 disabled:cursor-default disabled:opacity-60"
+          >
+            <span className={`h-2 w-2 shrink-0 rounded-full ${card.dot}`} />
+            <span className="flex-1">
+              <span className="block text-[14px] leading-snug font-medium">{card.label}</span>
+              <span className="block text-[12px] text-muted">{card.note}</span>
+            </span>
+            <span className="text-muted transition-transform group-hover:translate-x-1 group-hover:text-ember">
+              →
+            </span>
+          </motion.button>
+        </motion.li>
       ))}
     </motion.ul>
   );
@@ -403,7 +440,7 @@ function Welcome({ onPick }: { onPick: (text: string) => void }) {
 
       <motion.ul
         variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07, delayChildren: 0.35 } } }}
-        className="mt-9 grid w-full gap-2.5 sm:grid-cols-2"
+        className="mt-9 grid w-full gap-2.5 sm:grid-cols-3"
       >
         {(OPENING.chips ?? []).map((chip, i) => (
           <motion.li key={chip} variants={deal}>
@@ -524,6 +561,19 @@ export function ChatRoom() {
     setDraft("");
     setThinking(true);
     let followUp: FollowUp | undefined;
+
+    // The start-menu buttons are answered locally, with a fresh random pick.
+    try {
+      const picked = await quickPick(text);
+      if (picked) {
+        setMessages((m) => [...m, { id: nextId.current++, from: "bot", ...picked }]);
+        setThinking(false);
+        return;
+      }
+    } catch (error) {
+      // The menu could not be fetched; let the backend have a go instead.
+      console.error("[chat] quick pick failed:", error);
+    }
 
     try {
       const res = await sendChat(text);
@@ -792,7 +842,11 @@ export function ChatRoom() {
                                 </motion.div>
                               )}
 
-                              {m.dishes && m.dishes.length > 0 && <DishList items={m.dishes} />}
+                              {m.dishes && m.dishes.length > 0 && <DishList items={m.dishes} browseOnly={m.browseOnly} />}
+
+                              {m.menuCards && (
+                                <MenuCards onPick={(t) => void send(t)} disabled={thinking} />
+                              )}
 
                               {m.options && m.options.length > 0 && (
                                 <DishList items={m.options.map((o) => o.item)} />

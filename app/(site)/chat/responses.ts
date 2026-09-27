@@ -1,4 +1,5 @@
 import { CATEGORIES, type Dish } from "../menu/menu-data";
+import { HOT, VIEW_MENU } from "./quick-picks";
 
 /**
  * Canned replies for the demo. There is no model behind this — it keyword-
@@ -73,7 +74,7 @@ export function reply(input: string): Reply {
     return {
       text: "Hello. I am the pass — I know what is on tonight and roughly how hot it is. What are you after?",
       chips: [
-        "What's in the biryani?",
+        HOT,
         "Anything vegetarian?",
         "What's the least spicy thing?",
       ],
@@ -167,7 +168,7 @@ export function reply(input: string): Reply {
   return {
     text: "I only know tonight's menu, I am afraid — rice dishes, breads, gravies and sweets.\n\nTry asking about a dish by name, or what is vegetarian, or how hot something is.",
     chips: [
-      "What's in the biryani?",
+      HOT,
       "Anything vegetarian?",
       "What should I order for two?",
     ],
@@ -176,10 +177,5 @@ export function reply(input: string): Reply {
 
 export const OPENING: Reply = {
   text: "Evening. I am the pass at Milli — I know every dish going out tonight, what is in it and how hot it runs.\n\nWhat can I tell you?",
-  chips: [
-    "What's in the biryani?",
-    "Anything vegetarian?",
-    "What should I order for two?",
-    "How spicy is the meen curry?",
-  ],
+  chips: [HOT, VIEW_MENU, "What should I order for two?"],
 };
