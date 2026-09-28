@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { motion } from "motion/react";
-import { DEMO_ADMIN, adminSignIn } from "@/app/lib/auth";
+import { adminSignIn } from "@/app/lib/auth";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
@@ -142,13 +142,6 @@ export function AdminLoginForm() {
               )}
             </button>
           </form>
-
-          <p className="mt-6 rounded-xl border border-dashed border-cream/20 px-4 py-3 text-[12px] leading-relaxed text-cream/60">
-            <span className="font-medium text-cream">Demo build.</span> Sign in
-            with{" "}
-            <span className="font-mono text-amber">{DEMO_ADMIN.email}</span> /{" "}
-            <span className="font-mono text-amber">{DEMO_ADMIN.password}</span>.
-          </p>
         </div>
 
         <p className="mt-6 text-center text-[12px] text-cream/40">

@@ -1,15 +1,13 @@
 /**
- * Demo authentication.
+ * Authentication.
  *
- * There is no backend in this project, so both flows are simulated in the
- * browser: the "OTP" is a fixed code and the admin credentials are checked
- * against the constants below. Sessions live in a cookie so `proxy.ts` can do
- * an optimistic redirect on the server, plus sessionStorage for the in-flight
- * phone number.
+ * Staff sign-in is real: `adminSignIn` calls POST /api/auth/admin/login and
+ * keeps the JWT it returns, which the dashboard sends with every staff-only
+ * request. The backend checks that token -- the cookies here only drive the
+ * optimistic redirect in `proxy.ts` and are not what protects the data.
  *
- * To make this real, replace `requestOtp` / `verifyOtp` / `adminSignIn` with
- * calls to your API and set the session cookie server-side, HttpOnly. Nothing
- * here is a security boundary.
+ * The guest OTP flow is still simulated in the browser against a fixed code.
+ * To make that real, replace `requestOtp` / `verifyOtp` with calls to the API.
  *
  * This module is also imported by `proxy.ts`, so it must stay free of React
  * and of any work at import time.
@@ -17,15 +15,13 @@
 
 export const USER_COOKIE = "milli_user";
 export const ADMIN_COOKIE = "milli_admin";
+const ADMIN_TOKEN_COOKIE = "milli_admin_token";
+const ADMIN_SESSION_SECONDS = 60 * 60 * 8;
 
 const PENDING_PHONE_KEY = "milli_pending_phone";
 
 /** A real build would text a one-time code instead. */
 export const DEMO_OTP = "123456";
-export const DEMO_ADMIN = {
-  email: "admin@milli.pt",
-  password: "milli2026",
-};
 
 export type PendingPhone = {
   dialCode: string;
@@ -111,16 +107,34 @@ export async function verifyOtp(code: string) {
 }
 
 export async function adminSignIn(email: string, password: string) {
-  await delay(800);
-  if (
-    email.trim().toLowerCase() !== DEMO_ADMIN.email ||
-    password !== DEMO_ADMIN.password
-  ) {
+  let res: Response;
+  try {
+    res = await fetch("/api/auth/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+    });
+  } catch {
+    return { ok: false as const, error: "Could not reach the server. Try again." };
+  }
+  if (res.status === 401 || res.status === 400) {
     return { ok: false as const, error: "Wrong email or password." };
   }
-  setCookie(ADMIN_COOKIE, email.trim().toLowerCase(), 60 * 60 * 8);
+  const body = (await res.json().catch(() => null)) as
+    | { token: string; admin: { email: string } }
+    | null;
+  if (!res.ok || !body?.token) {
+    return { ok: false as const, error: "Sign-in failed. Try again." };
+  }
+  setCookie(ADMIN_TOKEN_COOKIE, body.token, ADMIN_SESSION_SECONDS);
+  setCookie(ADMIN_COOKIE, body.admin.email, ADMIN_SESSION_SECONDS);
   notify();
   return { ok: true as const };
+}
+
+/** The bearer token for staff-only API calls. */
+export function getAdminToken() {
+  return readCookie(ADMIN_TOKEN_COOKIE);
 }
 
 export function getUser() {
@@ -134,5 +148,6 @@ export function getAdmin() {
 export function signOut() {
   clearCookie(USER_COOKIE);
   clearCookie(ADMIN_COOKIE);
+  clearCookie(ADMIN_TOKEN_COOKIE);
   notify();
 }

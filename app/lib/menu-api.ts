@@ -308,3 +308,37 @@ export function removeFromCart(itemId: string) {
 export function clearCart() {
   return request<CartView>("/api/cart", { method: "DELETE" });
 }
+
+/* --------------------------------------------------------------- reviews -- */
+
+export type ReviewEntry = {
+  id: string;
+  /** "chat": said in passing to the concierge. "form": the rated form. */
+  source: "chat" | "form";
+  createdAt: string;
+  sentiment: "positive" | "negative" | "mixed";
+  message: string | null;
+  dish: string | null;
+  ratings: { overall: number; food: number; service: number; ambience: number; cleanliness: number } | null;
+  quick: boolean;
+  escalate: boolean;
+};
+
+export type ReviewsResponse = {
+  counts: { total: number; positive: number; negative: number; mixed: number };
+  reviews: ReviewEntry[];
+};
+
+/** Thrown when the staff token is missing, expired or not an admin's. */
+export class StaffAuthError extends Error {}
+
+/** Staff-only. Every review from the chat and the feedback form, newest first. */
+export async function fetchReviews(token: string): Promise<ReviewsResponse> {
+  const res = await fetch("/api/admin/reviews", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (res.status === 401 || res.status === 403) throw new StaffAuthError("Signed out");
+  if (!res.ok) throw new Error(`Request failed (${res.status})`);
+  return res.json() as Promise<ReviewsResponse>;
+}

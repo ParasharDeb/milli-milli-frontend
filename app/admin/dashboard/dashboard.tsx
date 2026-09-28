@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { signOut } from "@/app/lib/auth";
+import { getAdminToken, signOut } from "@/app/lib/auth";
 import { useAdmin } from "@/app/lib/use-auth";
 import { fetchStats, type MenuStats } from "@/app/lib/menu-api";
+import { ReviewsPanel } from "./reviews-panel";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
@@ -65,10 +66,10 @@ export function Dashboard() {
     if (!admin) router.replace("/admin/login");
   }, [admin, router]);
 
-  function handleSignOut() {
+  const handleSignOut = useCallback(() => {
     signOut();
     router.push("/admin/login");
-  }
+  }, [router]);
 
   if (!admin) return null;
 
@@ -284,6 +285,9 @@ export function Dashboard() {
             </Link>
           </motion.section>
         </div>
+
+        {/* An expired token signs the dashboard out rather than showing an empty list. */}
+        <ReviewsPanel token={getAdminToken()} onSignedOut={handleSignOut} />
       </main>
     </div>
   );
