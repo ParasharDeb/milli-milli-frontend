@@ -1,18 +1,22 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* Palette pulled from the room: warm plaster, green velvet, terracotta, candlelight */
-  --color-cream: #faf6ef;
-  --color-sand: #f1e7d8;
-  --color-parchment: #f6eee1;
-  --color-ink: #151210;
-  --color-muted: #6e645a;
-  --color-line: #e2d6c3;
+  /* Palette pulled from the room: cave plaster, rattan, lamplight, a copper bar */
+  --color-cream: #f6efe4;
+  --color-sand: #ede3d4;
+  --color-parchment: #f1e8da;
+  --color-ink: #1c140f;
+  --color-muted: #75695d;
+  --color-line: #e2d5c2;
+
+  /* the dark rooms: hero, The Room, reservations, footer */
+  --color-espresso: #140e0a;
+  --color-cocoa: #2a1d15;
 
   --color-forest: #0c3a2d;
   --color-forest-deep: #07281f;
   --color-basil: #1a7a56;
-  --color-ember: #e2542a;
+  --color-ember: #d85a2b;
   --color-terracotta: #c2603c;
   --color-amber: #e9a319;
   --color-gold: #c9a227;
@@ -55,16 +59,6 @@ body {
   background: var(--color-terracotta);
 }
 
-@utility eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.6875rem;
-  letter-spacing: 0.26em;
-  text-transform: uppercase;
-  font-weight: 500;
-}
-
 /* Faint paper tooth so flat color blocks don't read as plastic */
 @utility grain {
   position: relative;
@@ -81,6 +75,21 @@ body {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+}
+
+@utility wordmark {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 

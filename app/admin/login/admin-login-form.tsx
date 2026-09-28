@@ -50,17 +50,13 @@ export function AdminLoginForm() {
         <Link href="/" className="flex items-baseline gap-2">
           <span className="font-display text-2xl leading-none lowercase">milli</span>
           <span className="h-1.5 w-1.5 rounded-full bg-ember" />
-          <span className="text-[10px] tracking-[0.22em] text-cream/50 uppercase">
+          <span className="text-[12.5px] text-cream/50">
             Staff
           </span>
         </Link>
 
         <div className="mt-8 rounded-[1.75rem] border border-cream/12 bg-cream/6 p-7 backdrop-blur-xl sm:p-8">
-          <p className="eyebrow text-amber">
-            <span className="h-px w-6 bg-amber" />
-            Restricted
-          </p>
-          <h1 className="mt-4 font-display text-[1.9rem] leading-tight font-light">
+          <h1 className="font-display text-[1.9rem] leading-tight font-light">
             Staff sign in
           </h1>
           <p className="mt-2 text-[13px] text-cream/60">
@@ -70,7 +66,7 @@ export function AdminLoginForm() {
           <form onSubmit={handleSubmit} className="mt-7">
             <label
               htmlFor="email"
-              className="text-[11px] tracking-[0.18em] text-cream/55 uppercase"
+              className="text-[12.5px] text-cream/55"
             >
               Email
             </label>
@@ -90,7 +86,7 @@ export function AdminLoginForm() {
 
             <label
               htmlFor="password"
-              className="mt-5 block text-[11px] tracking-[0.18em] text-cream/55 uppercase"
+              className="mt-5 block text-[12.5px] text-cream/55"
             >
               Password
             </label>
@@ -111,7 +107,7 @@ export function AdminLoginForm() {
               <button
                 type="button"
                 onClick={() => setShow((v) => !v)}
-                className="absolute inset-y-0 right-3 text-[11px] tracking-[0.14em] text-cream/55 uppercase transition-colors hover:text-amber"
+                className="absolute inset-y-0 right-3 text-[12.5px] text-cream/55 transition-colors hover:text-amber"
               >
                 {show ? "Hide" : "Show"}
               </button>

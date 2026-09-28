@@ -1,11 +1,10 @@
+import { dishImage } from "@/app/lib/dish-images";
 import type { MenuItem } from "@/app/lib/menu-api";
 import type { Category, Dish } from "./menu-data";
 
 /**
- * Adapts database rows into the shape `DishOrbit` already renders.
- *
- * The orbit is a carefully tuned animation built around `Category`/`Dish`, so
- * the data is reshaped to fit it rather than the component being rewritten.
+ * Adapts database rows into the `Category`/`Dish` shape the menu page renders,
+ * the same shape as the bundled fallback menu.
  */
 
 /**
@@ -43,7 +42,7 @@ export function imageFor(name: string): string | undefined {
   return undefined;
 }
 
-/** The database records heat 0-5; the orbit draws three pips. */
+/** The database records heat 0-5; the menu draws three pips. */
 function toPips(spice: number, confidence: number | null): Dish["spice"] {
   if (confidence == null || confidence < 0.5) return 0;
   if (spice <= 0) return 0;
@@ -77,9 +76,9 @@ function toDish(item: MenuItem): Dish {
     id: item.id,
     name: item.name,
     desc: item.desc?.trim() || `${item.cuisine} ${item.course.toLowerCase()}, cooked to order.`,
-    // A photograph extracted from the POS export beats the keyword-matched
-    // stock library, which only covers 16 dishes.
-    img: item.imageUrl ?? imageFor(item.name),
+    // A photograph from the POS export, then the one shot for this dish, then
+    // the keyword-matched stock library, which only covers 16 dishes.
+    img: item.imageUrl ?? dishImage(item.name) ?? imageFor(item.name),
     price: item.price ?? undefined,
     tags: toTags(item),
     spice: toPips(item.spice, item.spiceConfidence),
@@ -94,7 +93,7 @@ type Group = {
   courses: string[];
 };
 
-/** Nine database courses collapsed into the four the orbit can show well. */
+/** Nine database courses collapsed into the four the menu is organised by. */
 const GROUPS: Group[] = [
   {
     id: "small",
@@ -126,17 +125,14 @@ const GROUPS: Group[] = [
   },
 ];
 
-/** The orbit fans satellites along an arc; more than this and it reads as clutter. */
-const MAX_PER_GROUP = 7;
-
 export function buildCategories(items: MenuItem[]): Category[] {
   return GROUPS.map((group) => {
     const dishes = items
       .filter((i) => group.courses.includes(i.course))
       .map(toDish)
-      // Dishes with photography and a real description carry the orbit best.
-      .sort((a, b) => Number(Boolean(b.img)) - Number(Boolean(a.img)) || b.desc.length - a.desc.length)
-      .slice(0, MAX_PER_GROUP);
+      // Dishes with photography and a real description lead the featured
+      // slider, which shows the first few of each course.
+      .sort((a, b) => Number(Boolean(b.img)) - Number(Boolean(a.img)) || b.desc.length - a.desc.length);
 
     return {
       id: group.id,

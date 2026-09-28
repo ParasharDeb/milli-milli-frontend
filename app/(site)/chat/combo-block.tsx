@@ -45,8 +45,7 @@ function ComboCard({ combo, index }: { combo: Combo; index: number }) {
       aria-label={`Combo ${index + 1}: ${combo.title}`}
       className="flex flex-col rounded-xl border border-line bg-parchment px-3.5 py-3"
     >
-      <p className="text-[10.5px] tracking-[0.12em] text-muted uppercase">Combo {index + 1}</p>
-      <h3 className="mt-0.5 text-[14.5px] leading-snug font-medium">{combo.title}</h3>
+      <h3 className="font-display text-[18px] leading-snug font-light">{combo.title}</h3>
       {combo.why && <p className="mt-1 text-[12.5px] leading-snug text-muted">{combo.why}</p>}
 
       <ul className="mt-2.5 flex-1 divide-y divide-line">
@@ -58,7 +57,7 @@ function ComboCard({ combo, index }: { combo: Combo; index: number }) {
               {/* Stacked, because the chat column gives each card ~170px:
                   name, then role and diet, then price beside the stepper. */}
               <p className="text-[13.5px] leading-snug font-medium">{item.name}</p>
-              <p className="mt-0.5 text-[10.5px] tracking-[0.1em] text-muted uppercase">
+              <p className="mt-0.5 text-[11.5px] text-muted">
                 {role}
                 <span aria-hidden> · </span>
                 {drink ? (

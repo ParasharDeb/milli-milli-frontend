@@ -1,227 +1,145 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
-import { BookingForm } from "@/app/components/booking-form";
+import type { ReactNode } from "react";
 import { Reveal, RevealGroup, RevealItem } from "@/app/components/reveal";
+import { ReservationForm } from "./reservation-form";
+import { SpaceCarousel } from "./space-carousel";
 
 export const metadata: Metadata = {
-  title: "Reserve a table — Milli",
-  description:
-    "Twelve tables, one seating a night. Book two weeks ahead, or take a counter stool from 18:30.",
+  title: "Reserve a table — Milli Milli",
+  description: "Good food, better company. Choose a date, a time and where you would like to sit.",
 };
 
-const HOURS = [
-  ["Wednesday – Thursday", "19:00 – 23:00", false],
-  ["Friday – Saturday", "18:30 – 00:00", false],
-  ["Sunday", "13:00 – 17:00", false],
-  ["Monday – Tuesday", "Closed", true],
-] as const;
+function Icon({ children }: { children: ReactNode }) {
+  return (
+    <svg aria-hidden width="34" height="34" viewBox="0 0 34 34" fill="none" className="text-ink/80">
+      {children}
+    </svg>
+  );
+}
 
-const POLICIES = [
+const PROMISES = [
   {
-    k: "01",
-    t: "One seating a night",
-    d: "The table is yours for the evening. We never turn it twice, so we hold bookings for twenty minutes and then release them.",
-    accent: "bg-ember",
-    tint: "border-ember/25 bg-ember/6",
+    title: "Seasonal menu",
+    body: "A menu built from the morning market.",
+    icon: (
+      <Icon>
+        <path d="M17 29V14m0 0c0-5 3-8.5 7-9.5.5 4.5-2 8.5-7 9.5Zm0 0c0-4-2.5-7-6-8-.5 4 1.5 7 6 8Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+        <circle cx="24.5" cy="6" r="1.6" fill="#d85a2b" />
+      </Icon>
+    ),
   },
   {
-    k: "02",
-    t: "Cancel by the day before",
-    d: "Free up to 24 hours ahead. Inside that we ask for ₹1,000 a head, because the food was already bought that morning.",
-    accent: "bg-amber",
-    tint: "border-amber/30 bg-amber/8",
+    title: "Indoor & outdoor",
+    body: "Choose your favourite spot.",
+    icon: (
+      <Icon>
+        <path d="M9 13c0-4 3.5-7 8-7s8 3 8 7-3.5 6-8 6-8-2-8-6Z" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M17 19v10m-5 0h10M13.5 13.5 17 17l3.5-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="26" cy="6.5" r="1.6" fill="#d85a2b" />
+      </Icon>
+    ),
   },
   {
-    k: "03",
-    t: "Six or more, call us",
-    d: "Large tables and the back room go through the phone so we can talk through the menu before you arrive.",
-    accent: "bg-basil",
-    tint: "border-basil/25 bg-basil/6",
+    title: "Great company",
+    body: "For date nights, friends and celebrations.",
+    icon: (
+      <Icon>
+        <path d="M8 7h7l-.8 7a2.7 2.7 0 0 1-5.4 0L8 7Zm3.5 10v9m-3 0h6M19 7h7l-.8 7a2.7 2.7 0 0 1-5.4 0L19 7Zm3.5 10v9m-3 0h6" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round" />
+        <circle cx="17" cy="4.5" r="1.6" fill="#d85a2b" />
+      </Icon>
+    ),
+  },
+  {
+    title: "Special requests",
+    body: "Tell us and we'll take care of the rest.",
+    icon: (
+      <Icon>
+        <path d="M7 27h20M9 23l2-6L23 5l4 4-12 12-6 2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round" />
+        <circle cx="27" cy="4.5" r="1.6" fill="#d85a2b" />
+      </Icon>
+    ),
   },
 ];
 
-const FAQS = [
-  [
-    "When do bookings open?",
-    "Two weeks ahead, at nine on Monday mornings. Cancellations go back online through the day, so it is worth checking again in the afternoon.",
-  ],
-  [
-    "Can we just walk in?",
-    "Six counter stools are kept for walk-ins from 18:30. They go quickly on Fridays and Saturdays, less so midweek.",
-  ],
-  [
-    "What about allergies?",
-    "Tell us when you book. The menu changes daily, so we can work around almost anything with a day's notice.",
-  ],
-  [
-    "Do you do private dining?",
-    "The back room seats ten, with a set menu at ₹6,500 a head. Email ola@milli.pt and we will send the details.",
-  ],
-];
+function one(v: string | string[] | undefined) {
+  return Array.isArray(v) ? v[0] : v;
+}
 
-export default function ReserveTablePage() {
+export default async function ReserveTablePage({ searchParams }: PageProps<"/reserve-table">) {
+  // The landing page's booking bar hands its choices over in the query string.
+  const params = await searchParams;
+  const date = one(params.date);
+  const guests = Number(one(params.guests));
+  const defaults = {
+    date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
+    time: one(params.time),
+    guests: Number.isInteger(guests) ? guests : undefined,
+  };
+
   return (
     <>
-      {/* header + form */}
-      <section className="relative overflow-hidden">
+      {/* hero */}
+      <section className="relative isolate overflow-hidden bg-espresso text-cream">
+        <div aria-hidden className="absolute inset-y-0 right-0 -z-10 w-full md:w-[72%]">
+          <Image
+            src="/img/milli/outdoor-balcony.webp"
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 768px) 100vw, 72vw"
+            className="object-cover object-[60%_60%]"
+          />
+        </div>
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(65%_60%_at_15%_15%,rgba(233,163,25,0.18),transparent_65%),radial-gradient(50%_50%_at_95%_80%,rgba(26,122,86,0.10),transparent_70%)]"
+          className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#140e0a_0%,#140e0a_30%,rgba(20,14,10,0.55)_48%,rgba(20,14,10,0.05)_75%)] max-md:bg-[linear-gradient(180deg,rgba(20,14,10,0.5)_0%,rgba(20,14,10,0.88)_100%)]"
         />
+        <div className="mx-auto w-full max-w-[1400px] px-5 pt-32 pb-16 md:px-10 md:pt-40 md:pb-24">
+          <h1 className="font-display text-[clamp(3.4rem,8vw,6.6rem)] leading-[0.95] font-light">
+            A table
+            <br />
+            awaits <span className="text-ember">you.</span>
+          </h1>
+          <p className="mt-6 max-w-xs text-[16px] leading-relaxed text-cream/85">
+            Good food, better company.
+            <br />
+            Let us set the table.
+          </p>
+        </div>
+      </section>
 
-        <div className="relative mx-auto grid w-full max-w-[1400px] gap-12 px-6 py-16 md:px-10 lg:grid-cols-[1fr_0.82fr] lg:items-start lg:gap-16 lg:py-20">
+      {/* booking */}
+      <section className="bg-cream">
+        <div className="mx-auto grid w-full max-w-[1400px] gap-12 px-5 py-16 md:px-10 lg:grid-cols-[1fr_0.95fr] lg:gap-16 lg:py-20">
           <div>
-            <Reveal as="p" className="eyebrow text-muted">
-              <span className="h-px w-8 bg-ember" />
-              Reservations
-            </Reveal>
-
-            <Reveal delay={0.05}>
-              <h1 className="mt-6 font-display text-[clamp(2.5rem,6vw,4.5rem)] leading-[0.98] font-light tracking-[-0.035em] text-balance">
-                Twelve tables.
+            <Reveal>
+              <h2 className="font-display text-[clamp(2.4rem,4.4vw,3.5rem)] leading-[1.02] font-light">
+                Plan your evening
                 <br />
-                <span className="text-ember italic">Take one.</span>
-              </h1>
+                at Milli.
+              </h2>
             </Reveal>
-
-            <Reveal delay={0.12}>
-              <p className="mt-7 max-w-md text-[17px] leading-relaxed text-muted text-pretty">
-                One seating a night, Wednesday to Sunday. Bookings open two weeks
-                ahead at nine on Monday mornings — and six stools at the counter
-                are always kept back for whoever walks in.
-              </p>
-            </Reveal>
-
-            <Reveal delay={0.18}>
-              <dl className="mt-10 divide-y divide-line border-y border-line">
-                {HOURS.map(([day, time, closed]) => (
-                  <div
-                    key={day}
-                    className="flex items-baseline justify-between gap-6 py-4"
-                  >
-                    <dt className="text-[15px]">{day}</dt>
-                    <dd
-                      className={`font-display text-lg tabular-nums ${closed ? "text-muted/50" : ""}`}
-                    >
-                      {time}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </Reveal>
-
-            <Reveal delay={0.24}>
-              <div className="mt-8 flex flex-wrap gap-x-10 gap-y-5">
-                {[
-                  ["Call us", "+351 21 000 0000"],
-                  ["Write", "ola@milli.pt"],
-                  ["Find us", "Rua das Flores 14, Lisboa"],
-                ].map(([k, v]) => (
-                  <div key={k}>
-                    <p className="text-[11px] tracking-[0.18em] text-muted uppercase">
-                      {k}
-                    </p>
-                    <p className="mt-1.5 text-[15px]">{v}</p>
-                  </div>
-                ))}
-              </div>
+            <Reveal delay={0.1}>
+              <ReservationForm defaults={defaults} />
             </Reveal>
           </div>
 
-          <Reveal delay={0.1}>
-            <div className="lg:sticky lg:top-28">
-              <BookingForm tone="light" />
-              <p className="mt-4 text-center text-[13px] text-muted">
-                Rather see what you would be eating first?{" "}
-                <Link
-                  href="/menu"
-                  className="underline underline-offset-2 hover:text-ink"
-                >
-                  Tonight&apos;s menu
-                </Link>
-                .
-              </p>
-            </div>
+          <Reveal delay={0.08} className="lg:pt-2">
+            <SpaceCarousel />
           </Reveal>
         </div>
-      </section>
 
-      {/* policies */}
-      <section className="grain bg-sand">
-        <div className="mx-auto w-full max-w-[1400px] px-6 py-20 md:px-10 lg:py-24">
-          <Reveal as="p" className="eyebrow text-muted">
-            <span className="h-px w-8 bg-terracotta" />
-            Before you come
-          </Reveal>
-
-          <div className="mt-10 grid gap-5 sm:grid-cols-3">
-            {POLICIES.map((item, i) => (
-              <Reveal key={item.k} delay={i * 0.1}>
-                <article
-                  className={`h-full rounded-[1.5rem] border ${item.tint} p-7 transition-transform duration-500 hover:-translate-y-1`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className={`h-2.5 w-2.5 rounded-full ${item.accent}`} />
-                    <span className="text-[11px] tracking-[0.22em] text-muted">
-                      {item.k}
-                    </span>
-                  </div>
-                  <h2 className="mt-5 font-display text-2xl font-light">{item.t}</h2>
-                  <p className="mt-3 text-[15px] leading-relaxed text-muted text-pretty">
-                    {item.d}
-                  </p>
-                </article>
-              </Reveal>
+        <div className="mx-auto w-full max-w-[1400px] px-5 pb-20 md:px-10">
+          <RevealGroup stagger={0.08} className="grid grid-cols-2 gap-x-6 gap-y-10 border-t border-line pt-12 lg:grid-cols-4">
+            {PROMISES.map((p) => (
+              <RevealItem key={p.title}>
+                {p.icon}
+                <p className="mt-4 font-display text-[21px] leading-tight font-light">{p.title}</p>
+                <p className="mt-2 max-w-[14rem] text-[13px] leading-relaxed text-muted">{p.body}</p>
+              </RevealItem>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* private dining + faq */}
-      <section className="mx-auto w-full max-w-[1400px] px-6 py-20 md:px-10 lg:py-24">
-        <div className="grid gap-12 lg:grid-cols-[0.85fr_1fr] lg:gap-16">
-          <Reveal>
-            <figure className="relative aspect-[4/5] overflow-hidden rounded-[2rem] bg-sand">
-              <Image
-                src="/img/room-dining.webp"
-                alt="The dining room at dusk, candlelit tables and a tall window"
-                fill
-                sizes="(max-width: 1024px) 100vw, 40vw"
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-ink/75 via-transparent to-transparent" />
-              <figcaption className="absolute inset-x-5 bottom-5 text-cream">
-                <span className="inline-block rounded-full bg-amber px-3 py-1 text-[10px] font-semibold tracking-[0.16em] text-ink uppercase">
-                  Private dining
-                </span>
-                <p className="mt-3 font-display text-xl leading-tight font-light">
-                  The back room seats ten
-                </p>
-                <p className="mt-1.5 text-[13px] text-cream/75">
-                  Set menu at ₹6,500 a head, wine paired or bring your own.
-                </p>
-              </figcaption>
-            </figure>
-          </Reveal>
-
-          <div>
-            <Reveal as="p" className="eyebrow text-muted">
-              <span className="h-px w-8 bg-basil" />
-              Questions
-            </Reveal>
-
-            <RevealGroup as="ul" stagger={0.08} className="mt-8 border-t border-line">
-              {FAQS.map(([q, a]) => (
-                <RevealItem as="li" key={q} className="border-b border-line py-6">
-                  <h3 className="font-display text-xl leading-snug font-light">{q}</h3>
-                  <p className="mt-2.5 max-w-xl text-[15px] leading-relaxed text-muted text-pretty">
-                    {a}
-                  </p>
-                </RevealItem>
-              ))}
-            </RevealGroup>
-          </div>
+          </RevealGroup>
         </div>
       </section>
     </>

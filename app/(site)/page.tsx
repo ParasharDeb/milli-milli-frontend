@@ -1,25 +1,21 @@
 import { Hero } from "@/app/components/hero";
-import { Marquee } from "@/app/components/marquee";
+import { Journal } from "@/app/components/journal";
+import { Market } from "@/app/components/market";
 import { Menu } from "@/app/components/menu";
-import { Press } from "@/app/components/press";
 import { Reserve } from "@/app/components/reserve";
 import { Room } from "@/app/components/room";
-import { Signatures } from "@/app/components/signatures";
-import { Story } from "@/app/components/story";
-import { Testimonials } from "@/app/components/testimonials";
+import { Tonight } from "@/app/components/tonight";
 
 export default function Page() {
   return (
     <>
       <Hero />
-      <Press />
-      <Story />
-      <Marquee />
-      <Signatures />
+      <Tonight />
+      <Market />
       <Menu />
       <Room />
-      <Testimonials />
       <Reserve />
+      <Journal />
     </>
   );
 }

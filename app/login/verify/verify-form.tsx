@@ -87,11 +87,7 @@ export function VerifyForm() {
             transition={{ duration: 0.7, ease: EASE_OUT }}
             className="mt-12"
           >
-            <p className="eyebrow text-muted">
-              <span className="h-px w-6 bg-ember" />
-              Step 2 of 2
-            </p>
-            <h1 className="mt-5 font-display text-[clamp(2rem,4.5vw,2.9rem)] leading-[1.05] font-light tracking-[-0.03em]">
+            <h1 className="font-display text-[clamp(2rem,4.5vw,2.9rem)] leading-[1.05] font-light">
               Enter your code.
             </h1>
             <p className="mt-4 text-[15px] leading-relaxed text-muted">
@@ -199,7 +195,7 @@ export function VerifyForm() {
           <p className="font-display text-2xl leading-snug font-light text-balance">
             “Twelve tables, zero pretence.”
           </p>
-          <footer className="mt-3 text-[11px] tracking-[0.22em] text-cream/60 uppercase">
+          <footer className="mt-3 text-[12.5px] text-cream/60">
             The Guardian
           </footer>
         </blockquote>

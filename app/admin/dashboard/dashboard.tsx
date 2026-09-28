@@ -85,7 +85,7 @@ export function Dashboard() {
               </span>
               <span className="h-1.5 w-1.5 rounded-full bg-ember" />
             </Link>
-            <span className="rounded-full border border-line bg-parchment px-3 py-1 text-[10px] font-medium tracking-[0.18em] text-muted uppercase">
+            <span className="rounded-full border border-line bg-parchment px-3 py-1 text-[12.5px] font-medium text-muted">
               Staff
             </span>
           </div>
@@ -109,12 +109,8 @@ export function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: EASE_OUT }}
         >
-          <p className="eyebrow text-muted">
-            <span className="h-px w-6 bg-ember" />
-            Wednesday, 16 September
-          </p>
           <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-            <h1 className="font-display text-[clamp(2rem,4vw,3rem)] leading-tight font-light tracking-[-0.03em]">
+            <h1 className="font-display text-[clamp(2rem,4vw,3rem)] leading-tight font-light">
               Service at a glance
             </h1>
             <div className="flex gap-2">
@@ -138,7 +134,7 @@ export function Dashboard() {
               transition={{ duration: 0.55, delay: 0.05 + i * 0.07, ease: EASE_OUT }}
               className="rounded-2xl border border-line bg-cream p-6"
             >
-              <p className="text-[11px] tracking-[0.18em] text-muted uppercase">
+              <p className="text-[12.5px] text-muted">
                 {stat.label}
               </p>
               <p className="mt-3 font-display text-4xl leading-none">{stat.value}</p>
@@ -163,7 +159,7 @@ export function Dashboard() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[42rem] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-line text-[11px] tracking-[0.16em] text-muted uppercase">
+                  <tr className="border-b border-line text-[12.5px] text-muted">
                     <th className="px-6 py-3 font-medium">Time</th>
                     <th className="px-4 py-3 font-medium">Guest</th>
                     <th className="px-4 py-3 font-medium">Pax</th>
@@ -229,7 +225,7 @@ export function Dashboard() {
                     ["Vegetarian", stats.byDiet["Vegetarian"] ?? 0],
                   ].map(([label, value]) => (
                     <div key={String(label)} className="rounded-xl border border-line bg-parchment px-3 py-3">
-                      <dt className="text-[10.5px] tracking-[0.14em] text-muted uppercase">
+                      <dt className="text-[12.5px] text-muted">
                         {label}
                       </dt>
                       <dd className="mt-1.5 font-display text-2xl leading-none font-light tabular-nums">
@@ -239,7 +235,7 @@ export function Dashboard() {
                   ))}
                 </dl>
 
-                <p className="mt-7 text-[10.5px] tracking-[0.16em] text-muted uppercase">
+                <p className="mt-7 text-[12.5px] text-muted">
                   Heat spread · food dishes
                 </p>
                 <ul className="mt-3 space-y-2.5">

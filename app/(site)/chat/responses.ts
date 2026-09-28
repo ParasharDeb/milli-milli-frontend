@@ -1,5 +1,5 @@
 import { CATEGORIES, type Dish } from "../menu/menu-data";
-import { HOT, VIEW_MENU } from "./quick-picks";
+import { HOT, TODAY } from "./quick-picks";
 
 /**
  * Canned replies for the demo. There is no model behind this — it keyword-
@@ -72,7 +72,7 @@ export function reply(input: string): Reply {
 
   if (/^(hi|hey|hello|yo|namaste|good (morning|evening))\b/.test(text)) {
     return {
-      text: "Hello. I am the pass — I know what is on tonight and roughly how hot it is. What are you after?",
+      text: "Hello, I'm Milli. I know what is on tonight and roughly how hot it is. What are you after?",
       chips: [
         HOT,
         "Anything vegetarian?",
@@ -176,6 +176,11 @@ export function reply(input: string): Reply {
 }
 
 export const OPENING: Reply = {
-  text: "Evening. I am the pass at Milli — I know every dish going out tonight, what is in it and how hot it runs.\n\nWhat can I tell you?",
-  chips: [HOT, VIEW_MENU, "What should I order for two?"],
+  text: "Hi, I'm Milli 👋\nI can help you with the menu, reservations, the space, location, or anything about your visit.\n\nWhat would you like to know?",
+  chips: [
+    TODAY,
+    "Is there a table for tonight?",
+    "Tell me about the outdoor seating",
+    "Do you have vegetarian options?",
+  ],
 };

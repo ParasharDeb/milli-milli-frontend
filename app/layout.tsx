@@ -10,13 +10,12 @@ const inter = Inter({
 const fraunces = Fraunces({
   variable: "--font-fraunces",
   subsets: ["latin"],
-  axes: ["SOFT", "WONK", "opsz"],
 });
 
 export const metadata: Metadata = {
-  title: "Milli — Seasonal kitchen",
+  title: "Milli Milli — A small kitchen that cooks the morning market",
   description:
-    "A small seasonal kitchen. Twelve tables, one menu, whatever the morning market gives us.",
+    "Twelve tables. One menu, rewritten every day from what the growers and the markets bring in.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

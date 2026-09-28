@@ -1,22 +1,14 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence, MotionConfig, motion, type Variants } from "motion/react";
+import { dishImage } from "@/app/lib/dish-images";
 import {
-  AnimatePresence,
-  MotionConfig,
-  motion,
-  type Variants,
-} from "motion/react";
-import { PixelBot, PixelBotIdle } from "@/app/components/pixel-bot";
-import { useCartDrawer } from "@/app/components/cart-drawer";
-import {
-  DIET_LABEL,
-  isVeg,
   priceLabel,
   fetchFollowUp,
   sendChat,
-  spiceLabel,
   type CartView,
   type Combo,
   type FollowUp,
@@ -24,8 +16,9 @@ import {
   type RecommendationGroup,
 } from "@/app/lib/menu-api";
 import { useCart } from "@/app/lib/cart-context";
+import { imageFor } from "../menu/menu-adapter";
 import { OPENING, reply, type Reply } from "./responses";
-import { MENU_CARDS, quickPick } from "./quick-picks";
+import { MENU_CARDS, VIEW_MENU, quickPick } from "./quick-picks";
 import { ComboBlock } from "./combo-block";
 import { AfterAddContext, useAfterAdd } from "./after-add";
 
@@ -80,6 +73,96 @@ const deal: Variants = {
   show: { opacity: 1, y: 0, scale: 1, transition: SPRING },
 };
 
+/* ------------------------------------------------------------ topics -- */
+
+function TopicIcon({ children }: { children: ReactNode }) {
+  return (
+    <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="none" className="shrink-0">
+      {children}
+    </svg>
+  );
+}
+
+const S = { stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+
+/**
+ * The sidebar. "General" starts the conversation over; every other topic asks
+ * its question as though the guest had typed it.
+ */
+const TOPICS: { id: string; title: string; sub: string; ask: string | null; icon: ReactNode }[] = [
+  {
+    id: "general",
+    title: "General",
+    sub: "Menu, reservations, hours",
+    ask: null,
+    icon: (
+      <TopicIcon>
+        <path d="M5 6h14v9H9l-4 3.5V6Z" {...S} />
+        <path d="M9 10h6" {...S} />
+      </TopicIcon>
+    ),
+  },
+  {
+    id: "menu",
+    title: "The Menu",
+    sub: "Dishes, ingredients, allergies",
+    ask: VIEW_MENU,
+    icon: (
+      <TopicIcon>
+        <path d="M7 3v8m-2.5-8v4.5a2.5 2.5 0 0 0 5 0V3M7 11v10M17 21V3c-2.2 1-3.5 3.5-3.5 7.5H17" {...S} />
+      </TopicIcon>
+    ),
+  },
+  {
+    id: "room",
+    title: "The Room",
+    sub: "Indoor, outdoor, atmosphere",
+    ask: "Tell me about the space",
+    icon: (
+      <TopicIcon>
+        <path d="M4 20V10l8-6 8 6v10M9 20v-5.5a3 3 0 0 1 6 0V20" {...S} />
+      </TopicIcon>
+    ),
+  },
+  {
+    id: "reservations",
+    title: "Reservations",
+    sub: "Availability, group bookings",
+    ask: "Is there a table for tonight?",
+    icon: (
+      <TopicIcon>
+        <rect x="4" y="5" width="16" height="15" rx="2" {...S} />
+        <path d="M4 10h16M8.5 3v4m7-4v4m-6 7.5 2 2 3.5-3.5" {...S} />
+      </TopicIcon>
+    ),
+  },
+  {
+    id: "events",
+    title: "Events",
+    sub: "Private dining, celebrations",
+    ask: "Do you host private dining or celebrations?",
+    icon: (
+      <TopicIcon>
+        <path d="M12 3.5 14.3 8l5 .7-3.6 3.5.8 5-4.5-2.4-4.5 2.4.8-5L4.7 8.7l5-.7L12 3.5Z" {...S} />
+      </TopicIcon>
+    ),
+  },
+  {
+    id: "location",
+    title: "Location & Hours",
+    sub: "How to reach us",
+    ask: "Where are you and what are your hours?",
+    icon: (
+      <TopicIcon>
+        <path d="M12 21s6.5-5.6 6.5-11a6.5 6.5 0 0 0-13 0c0 5.4 6.5 11 6.5 11Z" {...S} />
+        <circle cx="12" cy="10" r="2.3" {...S} />
+      </TopicIcon>
+    ),
+  },
+];
+
+/* ------------------------------------------------------------ pieces -- */
+
 /** Renders the **bold** and bullet lines the replies use. */
 function RichText({ text }: { text: string }) {
   return (
@@ -117,10 +200,37 @@ function RichText({ text }: { text: string }) {
   );
 }
 
+function Avatar() {
+  return (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink font-display text-[17px] text-cream">
+      M
+    </span>
+  );
+}
+
+function GuestAvatar() {
+  return (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sand text-ink/60">
+      <svg aria-hidden width="17" height="17" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="8.5" r="3.5" {...S} />
+        <path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" {...S} />
+      </svg>
+    </span>
+  );
+}
+
+function Chevron({ dir }: { dir: "left" | "right" }) {
+  return (
+    <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <path d={dir === "left" ? "M19 12H5m6-6-6 6 6 6" : "M5 12h14m-6-6 6 6-6 6"} {...S} />
+    </svg>
+  );
+}
+
 function DishCard({ item, browseOnly }: { item: MenuItem; browseOnly?: boolean }) {
-  const heat = spiceLabel(item);
-  const veg = isVeg(item);
   const price = priceLabel(item);
+  const img = item.imageUrl ?? dishImage(item.name) ?? imageFor(item.name);
+  const cutout = img?.startsWith("/img/menu/");
   const { add, busy } = useCart();
   const afterAdd = useAfterAdd();
   const [added, setAdded] = useState(false);
@@ -135,62 +245,90 @@ function DishCard({ item, browseOnly }: { item: MenuItem; browseOnly?: boolean }
   return (
     <motion.li
       variants={deal}
-      whileHover={{ y: -2 }}
-      className="rounded-xl border border-line bg-parchment px-3.5 py-2.5 transition-shadow hover:shadow-md hover:shadow-ink/5"
+      className="w-[46%] shrink-0 snap-start overflow-hidden rounded-lg border border-line bg-[#fbf8f3] sm:w-[168px]"
     >
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[14px] leading-snug font-medium">{item.name}</p>
-        {price && <span className="shrink-0 text-[13px] tabular-nums text-muted">{price}</span>}
-      </div>
-      {item.desc && (
-        <p className="mt-1 text-[12.5px] leading-snug text-muted">{item.desc}</p>
-      )}
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10.5px] tracking-[0.12em] text-muted uppercase">
-          {item.diet && (
-            <span className={veg ? "text-basil" : "text-ember"}>
-              {DIET_LABEL[item.diet] ?? item.diet}
-            </span>
-          )}
-          {/* Heat is omitted entirely when the kitchen data was never confident. */}
-          {heat && (
-            <>
-              <span aria-hidden>·</span>
-              <span>{heat}</span>
-            </>
-          )}
-          {item.diet && <span aria-hidden>·</span>}
-          <span>{item.cuisine}</span>
-        </p>
-
-        {!browseOnly && (
-        <motion.button
-          type="button"
-          onClick={handleAdd}
-          disabled={busy || added}
-          whileTap={{ scale: 0.92 }}
-          className={`relative shrink-0 overflow-hidden rounded-full border px-3 py-1 text-[11px] font-medium transition-colors disabled:cursor-default ${
-            added
-              ? "border-basil bg-basil text-cream"
-              : "border-ink/15 text-ink/70 hover:border-ember hover:text-ember disabled:opacity-60"
-          }`}
-        >
-          <AnimatePresence mode="popLayout" initial={false}>
-            <motion.span
-              key={added ? "added" : "add"}
-              initial={{ y: 12, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -12, opacity: 0 }}
-              transition={{ duration: 0.25, ease: EASE_OUT }}
-              className="block"
-            >
-              {added ? "Added ✓" : "Add to order"}
-            </motion.span>
-          </AnimatePresence>
-        </motion.button>
+      <span className="relative block aspect-[4/3] bg-sand">
+        {img ? (
+          <Image
+            src={img}
+            alt={item.name}
+            fill
+            sizes="170px"
+            className={cutout ? "bg-[#f4efe7] object-contain p-2" : "object-cover"}
+          />
+        ) : (
+          <span className="flex h-full items-center justify-center font-display text-3xl text-muted/50">
+            {item.name.trim().charAt(0)}
+          </span>
         )}
-      </div>
+      </span>
+      <span className="block px-3 pt-2.5 pb-3">
+        <span className="block text-[12.5px] leading-snug font-medium">{item.name}</span>
+        {item.desc && (
+          <span className="mt-0.5 line-clamp-2 block text-[11px] leading-snug text-muted">{item.desc}</span>
+        )}
+        <span className="mt-2 flex items-center justify-between gap-2">
+          <span className="text-[12.5px] text-ember tabular-nums">{price ?? ""}</span>
+          {!browseOnly && (
+            <motion.button
+              type="button"
+              onClick={handleAdd}
+              disabled={busy || added}
+              whileTap={{ scale: 0.9 }}
+              aria-label={added ? `${item.name} added` : `Add ${item.name} to your order`}
+              className={`rounded-full border px-2.5 py-0.5 text-[11px] transition-colors disabled:cursor-default ${
+                added
+                  ? "border-basil bg-basil text-cream"
+                  : "border-ink/15 text-ink/70 hover:border-ember hover:text-ember disabled:opacity-60"
+              }`}
+            >
+              {added ? "Added ✓" : "+ Add"}
+            </motion.button>
+          )}
+        </span>
+      </span>
     </motion.li>
+  );
+}
+
+/** A row of dish cards that scrolls sideways, with arrows once it overflows. */
+function DishRow({ items, browseOnly }: { items: MenuItem[]; browseOnly?: boolean }) {
+  const row = useRef<HTMLUListElement>(null);
+  const scroll = (d: number) => row.current?.scrollBy({ left: d * 360, behavior: "smooth" });
+
+  return (
+    <div className="relative mt-3">
+      <motion.ul
+        ref={row}
+        variants={reveal}
+        className="no-scrollbar flex snap-x snap-mandatory gap-2.5 overflow-x-auto"
+      >
+        {items.map((dish) => (
+          <DishCard key={dish.id} item={dish} browseOnly={browseOnly} />
+        ))}
+      </motion.ul>
+      {/* four cards fit the desktop column; past that the row scrolls */}
+      {items.length > 4 && (
+        <>
+          <button
+            type="button"
+            onClick={() => scroll(-1)}
+            aria-label="Scroll dishes back"
+            className="absolute top-[38%] -left-4 hidden h-9 w-9 items-center justify-center rounded-full border border-line bg-cream shadow-sm transition-colors hover:border-ink sm:flex"
+          >
+            <Chevron dir="left" />
+          </button>
+          <button
+            type="button"
+            onClick={() => scroll(1)}
+            aria-label="Scroll dishes on"
+            className="absolute top-[38%] -right-4 hidden h-9 w-9 items-center justify-center rounded-full border border-line bg-cream shadow-sm transition-colors hover:border-ink sm:flex"
+          >
+            <Chevron dir="right" />
+          </button>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -199,44 +337,27 @@ function GroupBlock({ group }: { group: RecommendationGroup }) {
     <motion.div variants={reveal} className="mt-4 first:mt-2">
       <motion.p
         variants={rise}
-        className="flex items-baseline gap-2 text-[11px] tracking-[0.14em] text-muted uppercase"
+        className="flex items-baseline gap-2 font-display text-[17px] font-light"
       >
-        <span className="h-px w-5 bg-ember" />
         {group.label}
-        {group.count > 1 && (
-          <span className="normal-case tracking-normal">· {group.count} guests</span>
-        )}
+        {group.count > 1 && <span className="font-sans text-[12.5px] text-muted">· {group.count} guests</span>}
       </motion.p>
 
       {group.recommendations.length > 0 ? (
-        <motion.ul variants={reveal} className="mt-2 grid gap-2 sm:grid-cols-2">
-          {group.recommendations.map((rec) => (
-            <DishCard key={rec.item.id} item={rec.item} />
-          ))}
-        </motion.ul>
+        <DishRow items={group.recommendations.map((r) => r.item)} />
       ) : (
         <motion.p variants={rise} className="mt-2 text-[13px] text-muted">
-          Nothing on tonight&apos;s menu fits this one — we never swap a dietary
-          requirement for something close.
+          Nothing on tonight&apos;s menu fits this one — we never swap a dietary requirement for
+          something close.
         </motion.p>
       )}
 
       {group.relaxations.length > 0 && (
-        <motion.p variants={rise} className="mt-2 text-[12px] text-muted italic">
+        <motion.p variants={rise} className="mt-2 text-[12px] text-muted">
           Widened the search to fill this one.
         </motion.p>
       )}
     </motion.div>
-  );
-}
-
-function DishList({ items, browseOnly }: { items: MenuItem[]; browseOnly?: boolean }) {
-  return (
-    <motion.ul variants={reveal} className="mt-3 grid gap-2 sm:grid-cols-2">
-      {items.map((dish) => (
-        <DishCard key={dish.id} item={dish} browseOnly={browseOnly} />
-      ))}
-    </motion.ul>
   );
 }
 
@@ -249,18 +370,16 @@ function MenuCards({ onPick, disabled }: { onPick: (text: string) => void; disab
             type="button"
             onClick={() => onPick(card.label)}
             disabled={disabled}
-            whileHover={{ y: -3 }}
+            whileHover={{ y: -2 }}
             whileTap={{ scale: 0.97 }}
-            className="group flex w-full items-center gap-3 rounded-xl border border-line bg-parchment px-3.5 py-3 text-left transition-[border-color,box-shadow] hover:border-ember/50 hover:shadow-md hover:shadow-ember/10 disabled:cursor-default disabled:opacity-60"
+            className="group flex w-full items-center gap-3 rounded-lg border border-line bg-[#fbf8f3] px-3.5 py-3 text-left transition-colors hover:border-ember/50 disabled:cursor-default disabled:opacity-60"
           >
             <span className={`h-2 w-2 shrink-0 rounded-full ${card.dot}`} />
             <span className="flex-1">
-              <span className="block text-[14px] leading-snug font-medium">{card.label}</span>
-              <span className="block text-[12px] text-muted">{card.note}</span>
+              <span className="block text-[13.5px] leading-snug font-medium">{card.label}</span>
+              <span className="block text-[11.5px] text-muted">{card.note}</span>
             </span>
-            <span className="text-muted transition-transform group-hover:translate-x-1 group-hover:text-ember">
-              →
-            </span>
+            <span className="text-muted transition-transform group-hover:translate-x-1 group-hover:text-ember">→</span>
           </motion.button>
         </motion.li>
       ))}
@@ -288,9 +407,9 @@ function Thinking() {
         {[0, 1, 2].map((d) => (
           <motion.span
             key={d}
-            animate={{ opacity: [0.25, 1, 0.25], y: [0, -4, 0], scale: [1, 1.15, 1] }}
+            animate={{ opacity: [0.25, 1, 0.25], y: [0, -4, 0] }}
             transition={{ duration: 1, repeat: Infinity, delay: d * 0.15, ease: "easeInOut" }}
-            className="h-1.5 w-1.5 rounded-full bg-forest"
+            className="h-1.5 w-1.5 rounded-full bg-ember"
           />
         ))}
       </span>
@@ -319,199 +438,92 @@ function headline(groups: RecommendationGroup[], partySize: number): string {
   return `Here is what I would send out${who} — three options against each thing you asked for.`;
 }
 
-/** Slow candlelit drift behind everything, so the room never looks static. */
-function Backdrop() {
-  const blobs = [
-    { c: "rgba(233,163,25,0.22)", s: "w-[42rem] h-[42rem] -top-60 -left-40", x: [0, 80, -20, 0], y: [0, 40, 90, 0], d: 26 },
-    { c: "rgba(26,122,86,0.14)", s: "w-[36rem] h-[36rem] top-1/3 -right-48", x: [0, -70, 10, 0], y: [0, 60, -40, 0], d: 32 },
-    { c: "rgba(226,84,42,0.10)", s: "w-[30rem] h-[30rem] -bottom-40 left-1/4", x: [0, 60, -50, 0], y: [0, -50, 10, 0], d: 29 },
-  ];
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      {blobs.map((b, i) => (
-        <motion.div
-          key={i}
-          animate={{ x: b.x, y: b.y }}
-          transition={{ duration: b.d, repeat: Infinity, ease: "easeInOut" }}
-          className={`absolute rounded-full blur-3xl ${b.s}`}
-          style={{ background: `radial-gradient(circle, ${b.c}, transparent 65%)` }}
-        />
-      ))}
-    </div>
-  );
+function opening(id: number): Message {
+  return { id, from: "bot", text: OPENING.text, chips: OPENING.chips };
 }
 
-function CartButton() {
-  const { open } = useCartDrawer();
-  const { cart } = useCart();
-  const count = cart?.totalItems ?? 0;
-
-  return (
-    <motion.button
-      type="button"
-      onClick={open}
-      whileTap={{ scale: 0.9 }}
-      aria-label={`Your order, ${count} items`}
-      className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-cream/20 text-cream/80 transition-colors hover:border-amber hover:text-amber"
-    >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path
-          d="M3 6h2l2.4 10.4a2 2 0 0 0 2 1.6h7.5a2 2 0 0 0 2-1.55L20.5 9H6"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx="10" cy="20" r="1.2" fill="currentColor" />
-        <circle cx="17" cy="20" r="1.2" fill="currentColor" />
-      </svg>
-      <AnimatePresence>
-        {count > 0 && (
-          <motion.span
-            key={count}
-            initial={{ scale: 0.3, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.3, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 500, damping: 18 }}
-            className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-ember px-1 text-[10px] font-medium tabular-nums text-cream"
-          >
-            {count}
-          </motion.span>
-        )}
-      </AnimatePresence>
-    </motion.button>
-  );
-}
-
-function Welcome({ onPick }: { onPick: (text: string) => void }) {
-  const words = ["Someone", "who", "has", "tasted", "everything."];
-
-  return (
-    <motion.div
-      key="welcome"
-      initial="hidden"
-      animate="show"
-      exit={{ opacity: 0, y: -24, filter: "blur(8px)", transition: { duration: 0.35 } }}
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-      className="mx-auto flex min-h-full w-full max-w-3xl flex-col items-center justify-center px-5 py-10 text-center"
-    >
-      <motion.div variants={deal} className="relative">
-        {/* two rings breathing out from the cook */}
-        {[0, 1].map((r) => (
-          <motion.span
-            key={r}
-            aria-hidden
-            animate={{ scale: [1, 1.8], opacity: [0.35, 0] }}
-            transition={{ duration: 2.8, repeat: Infinity, delay: r * 1.4, ease: "easeOut" }}
-            className="absolute inset-0 rounded-3xl border border-amber/60"
-          />
-        ))}
-        <div className="relative rounded-3xl bg-forest p-4 shadow-2xl shadow-forest/25">
-          <PixelBotIdle size={76} />
-        </div>
-      </motion.div>
-
-      <motion.p variants={rise} className="eyebrow mt-8 text-muted">
-        <span className="h-px w-8 bg-ember" />
-        Ask the pass
-        <span className="h-px w-8 bg-ember" />
-      </motion.p>
-
-      <h1 className="mt-4 font-display text-[clamp(2.2rem,6vw,4.2rem)] leading-[1] font-light tracking-[-0.035em] text-balance">
-        {words.map((w, i) => (
-          <motion.span
-            key={w}
-            variants={rise}
-            className={`inline-block ${i >= 3 ? "text-ember italic" : ""}`}
-          >
-            {w}
-            {i < words.length - 1 && " "}
-          </motion.span>
-        ))}
-      </h1>
-
-      <motion.p
-        variants={rise}
-        className="mt-5 max-w-lg text-[16px] leading-relaxed text-muted text-pretty"
-      >
-        Every dish going out tonight, what is in it, how hot it runs and what to
-        order if you cannot decide. Ask in plain words.
-      </motion.p>
-
-      <motion.ul
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07, delayChildren: 0.35 } } }}
-        className="mt-9 grid w-full gap-2.5 sm:grid-cols-3"
-      >
-        {(OPENING.chips ?? []).map((chip, i) => (
-          <motion.li key={chip} variants={deal}>
-            <motion.button
-              type="button"
-              onClick={() => onPick(chip)}
-              whileHover={{ y: -3 }}
-              whileTap={{ scale: 0.97 }}
-              className="group flex w-full items-center gap-3 rounded-2xl border border-line bg-cream/80 px-4 py-3.5 text-left text-[14.5px] backdrop-blur transition-[border-color,box-shadow] hover:border-ember/50 hover:shadow-lg hover:shadow-ember/10"
-            >
-              <span
-                className={`h-2 w-2 shrink-0 rounded-full ${
-                  ["bg-amber", "bg-basil", "bg-ember", "bg-terracotta"][i % 4]
-                }`}
-              />
-              <span className="flex-1">{chip}</span>
-              <span className="text-muted transition-transform group-hover:translate-x-1 group-hover:text-ember">
-                →
-              </span>
-            </motion.button>
-          </motion.li>
-        ))}
-      </motion.ul>
-
-      <motion.p variants={rise} className="mt-7 text-[12.5px] text-muted">
-        Try something like <span className="text-ink">“5 of us, 2 veg, 1 spicy non-veg”</span>
-      </motion.p>
-    </motion.div>
-  );
-}
+/* -------------------------------------------------------------- room -- */
 
 export function ChatRoom() {
   // A reply that changes the order carries the whole new cart, so the nav badge
   // updates from it rather than refetching.
   const { apply } = useCart();
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 0, from: "bot", text: OPENING.text, chips: OPENING.chips },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([opening(0)]);
   const [draft, setDraft] = useState("");
   const [thinking, setThinking] = useState(false);
   const [pinned, setPinned] = useState(true);
+  const [topic, setTopic] = useState("general");
   const nextId = useRef(1);
-  const scroller = useRef<HTMLDivElement>(null);
+  const end = useRef<HTMLDivElement>(null);
+  const thread = useRef<HTMLUListElement>(null);
+  const composer = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
 
   const started = messages.length > 1 || thinking;
 
+  /**
+   * How far the latest message sits below the visible area, which ends at the
+   * top of the composer pinned to the bottom of the window. The conversation
+   * scrolls with the page rather than inside a box of its own.
+   */
+  function overhang() {
+    const el = end.current;
+    if (!el) return 0;
+    const visibleBottom = window.innerHeight - (composer.current?.offsetHeight ?? 0);
+    return el.getBoundingClientRect().bottom - visibleBottom;
+  }
+
+  function scrollToLatest() {
+    const by = overhang() + 16;
+    // Only ever scroll down to it; a short conversation needs no jump.
+    if (by > 0) window.scrollBy({ top: by, behavior: "smooth" });
+  }
+
   // Follow the conversation while the reader is at the bottom, but leave them
   // alone if they have scrolled up to reread something -- unless they just sent.
   useEffect(() => {
-    const el = scroller.current;
     const last = messages[messages.length - 1];
-    if (el && started && (pinned || last?.from === "you")) {
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    }
+    if (started && (pinned || last?.from === "you")) scrollToLatest();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, thinking]);
+
+  // Replies keep changing height after they land: images load, chips arrive,
+  // the typing dots fade out. While the reader is at the latest message, keep
+  // it sitting just above the composer through all of that.
+  const follow = useRef({ pinned, started });
+  useEffect(() => {
+    follow.current = { pinned, started };
+  }, [pinned, started]);
+  useEffect(() => {
+    const el = thread.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      if (!follow.current.pinned || !follow.current.started) return;
+      const by = overhang() + 16;
+      if (Math.abs(by) < 400) window.scrollBy({ top: by });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const track = () => setPinned(overhang() < 80);
+    track();
+    window.addEventListener("scroll", track, { passive: true });
+    window.addEventListener("resize", track);
+    return () => {
+      window.removeEventListener("scroll", track);
+      window.removeEventListener("resize", track);
+    };
+  }, []);
 
   // Grow the textarea with what is typed, up to a few lines.
   useLayoutEffect(() => {
     const el = input.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
   }, [draft]);
-
-  function handleScroll() {
-    const el = scroller.current;
-    if (!el) return;
-    setPinned(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
-  }
 
   /**
    * The one "bread or rice with that?". It arrives as its own message after a
@@ -548,9 +560,16 @@ export function ChatRoom() {
 
   function reset() {
     if (thinking) return;
-    setMessages([{ id: nextId.current++, from: "bot", text: OPENING.text, chips: OPENING.chips }]);
+    setMessages([opening(nextId.current++)]);
     setDraft("");
     input.current?.focus();
+  }
+
+  function pickTopic(t: (typeof TOPICS)[number]) {
+    if (thinking) return;
+    setTopic(t.id);
+    if (t.ask) void send(t.ask);
+    else reset();
   }
 
   async function send(raw: string) {
@@ -596,23 +615,11 @@ export function ChatRoom() {
         // renders through exactly the same cards -- only the headline differs,
         // because here the kitchen actually wrote one.
         case "advice":
-          message = {
-            id,
-            from: "bot",
-            text: res.answer,
-            groups: res.groups,
-            chips: res.chips,
-          };
+          message = { id, from: "bot", text: res.answer, groups: res.groups, chips: res.chips };
           break;
 
         case "combos":
-          message = {
-            id,
-            from: "bot",
-            text: res.answer,
-            combos: res.combos,
-            chips: res.chips,
-          };
+          message = { id, from: "bot", text: res.answer, combos: res.combos, chips: res.chips };
           break;
 
         case "cart":
@@ -632,23 +639,11 @@ export function ChatRoom() {
         // The backend would not guess between two dishes. Each option's message
         // is a ready-made reply, so tapping one resolves it on an exact name.
         case "clarify":
-          message = {
-            id,
-            from: "bot",
-            text: res.answer,
-            options: res.options,
-            chips: res.chips,
-          };
+          message = { id, from: "bot", text: res.answer, options: res.options, chips: res.chips };
           break;
 
         default:
-          message = {
-            id,
-            from: "bot",
-            text: res.answer,
-            dishes: res.dishes,
-            chips: res.chips,
-          };
+          message = { id, from: "bot", text: res.answer, dishes: res.dishes, chips: res.chips };
       }
 
       setMessages((m) => [...m, message]);
@@ -677,374 +672,286 @@ export function ChatRoom() {
   }
 
   const last = messages[messages.length - 1];
-  const lastChips = started && !thinking && last?.from === "bot" ? last.chips : undefined;
 
   return (
     <AfterAddContext.Provider value={(ids) => void afterAdd(ids)}>
       <MotionConfig reducedMotion="user">
-        <div className="relative flex h-dvh flex-col overflow-hidden bg-parchment">
-          {/* top bar */}
-          <motion.header
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6, ease: EASE_OUT }}
-            className="grain relative z-20 shrink-0 bg-forest text-cream"
-          >
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -top-16 left-1/2 h-36 w-72 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(233,163,25,0.28),transparent_65%)] blur-xl"
-            />
-            <div className="relative mx-auto flex w-full max-w-[1400px] items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6">
-              <Link
-                href="/"
-                className="group flex shrink-0 items-baseline gap-2 rounded-full py-1 pr-2"
-                aria-label="Back to Milli"
-              >
-                <span className="text-cream/50 transition-transform group-hover:-translate-x-1">←</span>
-                <span className="font-display text-xl leading-none tracking-[-0.02em] lowercase">
-                  milli
-                </span>
-                <span className="h-1.5 w-1.5 rounded-full bg-ember" />
-              </Link>
-
-              <span className="h-6 w-px shrink-0 bg-cream/15" />
-
-              <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="relative shrink-0 rounded-xl bg-forest-deep/70 p-1">
-                  <PixelBot size={32} talking={thinking} />
-                  <span className="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-forest bg-amber">
-                    <span className="absolute inset-0 animate-ping rounded-full bg-amber/70" />
-                  </span>
-                </div>
-                <div className="min-w-0">
-                  <p className="font-display text-[17px] leading-tight font-light">The pass</p>
-                  <div className="relative h-4 overflow-hidden text-[11.5px] text-cream/60">
-                    <AnimatePresence mode="popLayout" initial={false}>
-                      <motion.p
-                        key={thinking ? "t" : "o"}
-                        initial={{ y: 10, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -10, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: EASE_OUT }}
-                        className="truncate"
+        <section id="concierge" className="scroll-mt-16 bg-cream">
+          <div className="mx-auto grid w-full max-w-[1400px] gap-6 px-5 py-10 md:px-10 lg:grid-cols-[250px_1fr] lg:gap-10 lg:py-14">
+            {/* topics */}
+            <nav aria-label="Topics" className="min-w-0 lg:sticky lg:top-24 lg:self-start">
+              <ul className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-col lg:gap-1.5 lg:overflow-visible lg:px-0">
+                {TOPICS.map((t) => {
+                  const on = t.id === topic;
+                  return (
+                    <li key={t.id} className="shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => pickTopic(t)}
+                        disabled={thinking}
+                        aria-pressed={on}
+                        className={`relative flex w-full items-center gap-3.5 rounded-full px-4 py-2.5 text-left transition-colors disabled:cursor-default lg:rounded-2xl lg:px-5 lg:py-3.5 ${
+                          on ? "text-cream" : "text-ink/80 hover:bg-sand/70"
+                        } max-lg:border max-lg:border-line`}
                       >
-                        {thinking ? "typing…" : "online · knows tonight's menu"}
-                      </motion.p>
-                    </AnimatePresence>
-                  </div>
-                </div>
-              </div>
+                        {on && (
+                          <motion.span
+                            layoutId="chat-topic"
+                            transition={{ type: "spring", stiffness: 380, damping: 34 }}
+                            className="absolute inset-0 rounded-full bg-ink lg:rounded-2xl"
+                          />
+                        )}
+                        <span className="relative">{t.icon}</span>
+                        <span className="relative">
+                          <span className="block text-[13px] leading-tight whitespace-nowrap">{t.title}</span>
+                          <span
+                            className={`mt-0.5 hidden text-[11px] leading-tight lg:block ${
+                              on ? "text-cream/60" : "text-muted"
+                            }`}
+                          >
+                            {t.sub}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
 
-              <AnimatePresence>
-                {started && (
-                  <motion.button
-                    type="button"
-                    onClick={reset}
-                    disabled={thinking}
-                    initial={{ opacity: 0, scale: 0.85 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.85 }}
-                    whileTap={{ scale: 0.94 }}
-                    className="hidden shrink-0 rounded-full border border-cream/20 px-4 py-2 text-[12px] transition-colors hover:border-amber hover:text-amber disabled:opacity-40 sm:block"
-                  >
-                    New chat
-                  </motion.button>
-                )}
-              </AnimatePresence>
-              <Link
-                href="/menu"
-                className="hidden shrink-0 rounded-full border border-cream/20 px-4 py-2 text-[12px] transition-colors hover:border-amber hover:text-amber md:block"
-              >
-                See the menu
-              </Link>
-              <CartButton />
-            </div>
-          </motion.header>
-
-          {/* transcript */}
-          <div className="relative min-h-0 flex-1">
-            <Backdrop />
-
-            <div
-              ref={scroller}
-              onScroll={handleScroll}
-              className="relative h-full overflow-y-auto overscroll-contain"
-            >
-              <AnimatePresence mode="wait">
-                {!started ? (
-                  <Welcome key="welcome" onPick={(t) => void send(t)} />
-                ) : (
-                  <motion.ul
-                    key="thread"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="mx-auto w-full max-w-4xl space-y-6 px-4 pt-8 pb-10 sm:px-6"
-                  >
-                    {messages.map((m) =>
-                      m.from === "you" ? (
+            {/* conversation */}
+            <div className="relative flex min-w-0 flex-col">
+              <div className="min-h-[45svh]">
+                <ul ref={thread} className="space-y-6 pb-6 sm:pr-5">
+                  {messages.map((m) => {
+                    if (m.from === "you") {
+                      return (
                         <motion.li
                           key={m.id}
                           layout="position"
-                          initial={{ opacity: 0, y: 18, x: 16, scale: 0.92 }}
+                          initial={{ opacity: 0, y: 18, x: 16, scale: 0.94 }}
                           animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
                           transition={SPRING}
                           style={{ originX: 1, originY: 1 }}
-                          className="flex justify-end"
+                          className="flex items-end justify-end gap-3"
                         >
-                          <div className="max-w-[82%] rounded-2xl rounded-br-sm bg-ink px-4 py-3 text-[15px] leading-relaxed text-cream shadow-lg shadow-ink/10 whitespace-pre-wrap">
+                          <div className="max-w-[78%] rounded-2xl rounded-br-sm bg-ink px-4 py-2.5 text-[13.5px] leading-relaxed text-cream whitespace-pre-wrap">
                             {m.text}
                           </div>
+                          <GuestAvatar />
                         </motion.li>
-                      ) : (
-                        <motion.li
-                          key={m.id}
-                          layout="position"
-                          initial="hidden"
-                          animate="show"
-                          variants={reveal}
-                          className="flex gap-3"
+                      );
+                    }
+
+                    const isLast = m === last;
+                    const chips = isLast && !thinking ? m.chips : undefined;
+                    const wide = Boolean(
+                      m.combos?.length || m.groups?.length || m.dishes?.length || m.options?.length || m.added?.length,
+                    );
+
+                    return (
+                      <motion.li
+                        key={m.id}
+                        layout="position"
+                        initial="hidden"
+                        animate="show"
+                        variants={reveal}
+                        className="flex gap-3"
+                      >
+                        <motion.span
+                          variants={{
+                            hidden: { opacity: 0, scale: 0.6 },
+                            show: { opacity: 1, scale: 1, transition: SPRING },
+                          }}
+                          className="self-start"
                         >
-                          <motion.span
+                          <Avatar />
+                        </motion.span>
+
+                        <div className={wide ? "min-w-0 flex-1" : "min-w-0 max-w-[82%] sm:max-w-[70%]"}>
+                          <motion.div
                             variants={{
-                              hidden: { opacity: 0, scale: 0.6, rotate: -12 },
-                              show: { opacity: 1, scale: 1, rotate: 0, transition: SPRING },
+                              hidden: { opacity: 0, y: 10, scale: 0.98 },
+                              show: {
+                                opacity: 1,
+                                y: 0,
+                                scale: 1,
+                                transition: { ...SPRING, staggerChildren: 0.07, delayChildren: 0.08 },
+                              },
                             }}
-                            className="mt-1 shrink-0 self-start rounded-lg bg-forest p-1 shadow-md shadow-forest/20"
+                            style={{ originX: 0, originY: 0 }}
+                            className="rounded-2xl rounded-tl-sm border border-line bg-[#fbf8f3] px-5 py-4 text-[13.5px] leading-relaxed text-ink"
                           >
-                            <PixelBot size={26} />
-                          </motion.span>
+                            <RichText text={m.text} />
 
-                          {/* Three combos side by side need the full row. */}
-                          <div className={m.combos?.length || m.groups?.length ? "min-w-0 flex-1" : "min-w-0 max-w-[86%]"}>
-                            <motion.div
-                              variants={{
-                                hidden: { opacity: 0, y: 10, scale: 0.98 },
-                                show: {
-                                  opacity: 1,
-                                  y: 0,
-                                  scale: 1,
-                                  transition: { ...SPRING, staggerChildren: 0.07, delayChildren: 0.08 },
-                                },
-                              }}
-                              style={{ originX: 0, originY: 0 }}
-                              className="rounded-2xl rounded-tl-sm border border-line bg-cream/90 px-4 py-3 text-[15px] leading-relaxed text-ink shadow-sm shadow-ink/5 backdrop-blur"
-                            >
-                              <RichText text={m.text} />
+                            {m.groups?.map((group) => <GroupBlock key={group.id} group={group} />)}
 
-                              {m.groups?.map((group) => (
-                                <GroupBlock key={group.id} group={group} />
-                              ))}
-
-                              {m.combos && m.combos.length > 0 && (
-                                <motion.div variants={deal}>
-                                  <ComboBlock combos={m.combos} />
-                                </motion.div>
-                              )}
-
-                              {m.dishes && m.dishes.length > 0 && <DishList items={m.dishes} browseOnly={m.browseOnly} />}
-
-                              {m.menuCards && (
-                                <MenuCards onPick={(t) => void send(t)} disabled={thinking} />
-                              )}
-
-                              {m.options && m.options.length > 0 && (
-                                <DishList items={m.options.map((o) => o.item)} />
-                              )}
-
-                              {m.added && m.added.length > 0 && (
-                                <motion.div variants={reveal} className="mt-3 border-t border-line pt-1">
-                                  <DishList items={m.added} />
-                                </motion.div>
-                              )}
-
-                              {m.cart && m.cart.lines.length > 0 && (
-                                <motion.p
-                                  variants={rise}
-                                  className="mt-3 border-t border-line pt-2 text-[12px] text-muted"
-                                >
-                                  In your order:{" "}
-                                  {m.cart.lines.map((l) => `${l.qty} x ${l.item.name}`).join(", ")}
-                                  {m.cart.subtotal != null &&
-                                    ` · ₹${Math.round(m.cart.subtotal).toLocaleString("en-IN")}`}
-                                </motion.p>
-                              )}
-
-                              {m.offline && (
-                                <motion.p
-                                  variants={rise}
-                                  className="mt-3 border-t border-line pt-2 text-[12px] text-muted"
-                                >
-                                  The kitchen service is unreachable, so that came from the
-                                  bundled menu rather than tonight&apos;s live data.
-                                </motion.p>
-                              )}
-                            </motion.div>
-
-                            {m.link && (
+                            {m.combos && m.combos.length > 0 && (
                               <motion.div variants={deal}>
-                                <Link
-                                  href={m.link.href}
-                                  className="group mt-2.5 inline-flex items-center gap-2 rounded-full bg-ember px-5 py-2.5 text-[13px] font-medium text-cream shadow-lg shadow-ember/20 transition-colors hover:bg-amber hover:text-ink"
-                                >
-                                  {m.link.label}
-                                  <span className="transition-transform group-hover:translate-x-1">
-                                    →
-                                  </span>
-                                </Link>
+                                <ComboBlock combos={m.combos} />
                               </motion.div>
                             )}
-                          </div>
-                        </motion.li>
-                      ),
-                    )}
 
-                    <AnimatePresence>
-                      {thinking && (
-                        <motion.li
-                          key="thinking"
-                          layout="position"
-                          initial={{ opacity: 0, y: 12, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
-                          transition={SPRING}
-                          style={{ originX: 0 }}
-                          className="flex gap-3"
-                        >
-                          <span className="mt-1 shrink-0 self-start rounded-lg bg-forest p-1 shadow-md shadow-forest/20">
-                            <PixelBot size={26} talking />
-                          </span>
-                          <div className="rounded-2xl rounded-tl-sm border border-line bg-cream/90 px-4 py-3 backdrop-blur">
-                            <Thinking />
-                          </div>
-                        </motion.li>
-                      )}
-                    </AnimatePresence>
-                  </motion.ul>
-                )}
-              </AnimatePresence>
-            </div>
+                            {m.dishes && m.dishes.length > 0 && <DishRow items={m.dishes} browseOnly={m.browseOnly} />}
 
-            {/* jump back down after scrolling up */}
-            <AnimatePresence>
-              {started && !pinned && (
-                <motion.button
-                  type="button"
-                  onClick={() =>
-                    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" })
-                  }
-                  initial={{ opacity: 0, y: 12, scale: 0.8 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 12, scale: 0.8 }}
-                  transition={SPRING}
-                  aria-label="Scroll to the latest message"
-                  className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full border border-line bg-cream px-4 py-2 text-[12px] text-ink shadow-lg shadow-ink/10 hover:border-ember"
-                >
-                  ↓ Latest
-                </motion.button>
-              )}
-            </AnimatePresence>
-          </div>
+                            {m.menuCards && <MenuCards onPick={(t) => void send(t)} disabled={thinking} />}
 
-          {/* suggestions + composer */}
-          <div className="relative z-10 shrink-0 border-t border-line bg-cream/85 backdrop-blur-xl">
-            <div className="mx-auto w-full max-w-4xl px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
-              <AnimatePresence mode="wait">
-                {lastChips && lastChips.length > 0 && (
-                  <motion.div
-                    key={last!.id}
-                    initial="hidden"
-                    animate="show"
-                    exit={{ opacity: 0, y: 6, transition: { duration: 0.15 } }}
-                    variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05, delayChildren: 0.25 } } }}
-                    className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0"
-                  >
-                    {lastChips.map((chip) => (
-                      <motion.button
-                        key={chip}
-                        type="button"
-                        onClick={() => send(chip)}
-                        variants={{
-                          hidden: { opacity: 0, y: 10, scale: 0.9 },
-                          show: { opacity: 1, y: 0, scale: 1, transition: SPRING },
-                        }}
-                        whileHover={{ y: -2 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="shrink-0 rounded-full border border-line bg-parchment px-3.5 py-2 text-[13px] whitespace-nowrap text-muted transition-colors hover:border-ember hover:text-ink"
+                            {m.options && m.options.length > 0 && <DishRow items={m.options.map((o) => o.item)} />}
+
+                            {m.added && m.added.length > 0 && (
+                              <motion.div variants={reveal} className="mt-3 border-t border-line pt-1">
+                                <DishRow items={m.added} />
+                              </motion.div>
+                            )}
+
+                            {m.cart && m.cart.lines.length > 0 && (
+                              <motion.p variants={rise} className="mt-3 border-t border-line pt-2 text-[12px] text-muted">
+                                In your order: {m.cart.lines.map((l) => `${l.qty} x ${l.item.name}`).join(", ")}
+                                {m.cart.subtotal != null && ` · ₹${Math.round(m.cart.subtotal).toLocaleString("en-IN")}`}
+                              </motion.p>
+                            )}
+
+                            {m.offline && (
+                              <motion.p variants={rise} className="mt-3 border-t border-line pt-2 text-[12px] text-muted">
+                                The kitchen service is unreachable, so that came from the bundled menu rather than
+                                tonight&apos;s live data.
+                              </motion.p>
+                            )}
+                          </motion.div>
+
+                          {m.link && (
+                            <motion.div variants={deal}>
+                              <Link
+                                href={m.link.href}
+                                className="group mt-2.5 inline-flex items-center gap-2 rounded-full bg-ember px-5 py-2.5 text-[12.5px] font-medium text-cream transition-colors hover:bg-ink"
+                              >
+                                {m.link.label}
+                                <span className="transition-transform group-hover:translate-x-1">→</span>
+                              </Link>
+                            </motion.div>
+                          )}
+
+                          {chips && chips.length > 0 && (
+                            <motion.div
+                              variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05, delayChildren: 0.2 } } }}
+                              className="mt-3 flex flex-wrap gap-2"
+                            >
+                              {chips.map((chip) => (
+                                <motion.button
+                                  key={chip}
+                                  type="button"
+                                  onClick={() => void send(chip)}
+                                  variants={{
+                                    hidden: { opacity: 0, y: 8, scale: 0.94 },
+                                    show: { opacity: 1, y: 0, scale: 1, transition: SPRING },
+                                  }}
+                                  whileTap={{ scale: 0.95 }}
+                                  className="rounded-full border border-ink/20 bg-[#fbf8f3] px-4 py-2 text-[12.5px] text-ink/85 transition-colors hover:border-ember hover:text-ember"
+                                >
+                                  {chip}
+                                </motion.button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </div>
+                      </motion.li>
+                    );
+                  })}
+
+                  <AnimatePresence>
+                    {thinking && (
+                      <motion.li
+                        key="thinking"
+                        layout="position"
+                        initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
+                        transition={SPRING}
+                        style={{ originX: 0 }}
+                        className="flex gap-3"
                       >
-                        {chip}
-                      </motion.button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                        <Avatar />
+                        <div className="rounded-2xl rounded-tl-sm border border-line bg-[#fbf8f3] px-5 py-3.5">
+                          <Thinking />
+                        </div>
+                      </motion.li>
+                    )}
+                  </AnimatePresence>
+                </ul>
+                <div ref={end} aria-hidden />
+              </div>
 
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void send(draft);
-                }}
-                className="group relative flex items-end gap-2 rounded-[1.6rem] border border-line bg-parchment p-1.5 pl-5 shadow-sm transition-[border-color,box-shadow] duration-300 focus-within:border-ember/60 focus-within:shadow-[0_0_0_4px_rgba(226,84,42,0.10)]"
+              {/* composer, pinned to the bottom of the window while the chat is on screen */}
+              <div
+                ref={composer}
+                className="sticky bottom-0 z-10 -mx-2 bg-gradient-to-t from-cream from-80% to-cream/0 px-2 pt-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
               >
-                <label htmlFor="ask" className="sr-only">
-                  Ask about the menu
-                </label>
-                <textarea
-                  id="ask"
-                  ref={input}
-                  rows={1}
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                {/* jump back down after scrolling up */}
+                <AnimatePresence>
+                  {started && !pinned && (
+                    <motion.button
+                      type="button"
+                      onClick={scrollToLatest}
+                      initial={{ opacity: 0, y: 12, scale: 0.8 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 12, scale: 0.8 }}
+                      transition={SPRING}
+                      aria-label="Scroll to the latest message"
+                      className="absolute -top-6 left-1/2 z-10 -translate-x-1/2 rounded-full border border-line bg-cream px-4 py-2 text-[12px] text-ink shadow-lg shadow-ink/10 hover:border-ember"
+                    >
+                      ↓ Latest
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+  
+                  <form
+                    onSubmit={(e) => {
                       e.preventDefault();
                       void send(draft);
-                    }
-                  }}
-                  placeholder="Try: 5 of us, 2 veg, 1 spicy non-veg…"
-                  autoComplete="off"
-                  className="max-h-40 min-w-0 flex-1 resize-none bg-transparent py-3 text-[15px] leading-6 placeholder:text-muted/60 focus:outline-none"
-                />
-                <motion.button
-                  type="submit"
-                  disabled={!draft.trim() || thinking}
-                  aria-label="Send"
-                  whileHover={{ scale: 1.06 }}
-                  whileTap={{ scale: 0.88 }}
-                  animate={{
-                    backgroundColor: draft.trim() && !thinking ? "#e2542a" : "#151210",
-                    opacity: draft.trim() && !thinking ? 1 : 0.35,
-                  }}
-                  transition={{ duration: 0.25 }}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-cream disabled:cursor-not-allowed"
-                >
-                  <motion.svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    aria-hidden
-                    animate={{ rotate: draft.trim() ? -45 : 0 }}
-                    transition={SPRING}
+                    }}
+                    className="flex items-end gap-2 rounded-[1.75rem] border border-line bg-[#fbf8f3] py-1.5 pr-1.5 pl-5 shadow-[0_10px_30px_-24px_rgba(28,20,15,0.5)] transition-[border-color,box-shadow] focus-within:border-ember/60 focus-within:shadow-[0_0_0_4px_rgba(216,90,43,0.10)]"
                   >
-                    <path
-                      d="M5 12h14M13 6l6 6-6 6"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+                    <svg aria-hidden width="19" height="19" viewBox="0 0 24 24" fill="none" className="mb-3 shrink-0 text-ink/50">
+                      <path d="M5 6h14v9H9l-4 3.5V6Z" {...S} />
+                    </svg>
+                    <label htmlFor="ask" className="sr-only">
+                      Ask anything about Milli
+                    </label>
+                    <textarea
+                      id="ask"
+                      ref={input}
+                      rows={1}
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                          e.preventDefault();
+                          void send(draft);
+                        }
+                      }}
+                      placeholder="Ask anything about Milli…"
+                      autoComplete="off"
+                      className="max-h-36 min-w-0 flex-1 resize-none bg-transparent py-3 text-[14px] leading-6 placeholder:text-muted/70 focus:outline-none"
                     />
-                  </motion.svg>
-                </motion.button>
-              </form>
-
-              <p className="mt-2 text-center text-[11px] text-muted">
-                Answers come from tonight&apos;s actual menu — every dish is looked up
-                before it is suggested, and heat is only quoted when the kitchen recorded it.
-              </p>
+                    <motion.button
+                      type="submit"
+                      disabled={!draft.trim() || thinking}
+                      aria-label="Send"
+                      whileTap={{ scale: 0.9 }}
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-cream transition-colors disabled:cursor-not-allowed ${
+                        draft.trim() && !thinking ? "bg-ember" : "bg-ink"
+                      }`}
+                    >
+                      <Chevron dir="right" />
+                    </motion.button>
+                  </form>
+                  <p className="mt-2.5 text-center text-[11px] text-muted">
+                    Milli can make mistakes. For critical information, please confirm with our team.
+                  </p>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
       </MotionConfig>
     </AfterAddContext.Provider>
   );

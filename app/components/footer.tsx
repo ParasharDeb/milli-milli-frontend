@@ -1,110 +1,110 @@
-import { Reveal } from "./reveal";
+import Image from "next/image";
+import Link from "next/link";
 
-const COLUMNS = [
-  {
-    title: "Visit",
-    links: ["Menu", "The kitchen", "The room", "Private dining", "Gift cards"],
-  },
-  {
-    title: "More",
-    links: ["Journal", "Press kit", "Suppliers", "Work with us", "Stockists"],
-  },
+const LINKS = [
+  ["Menu", "/menu"],
+  ["Reserve", "/reserve-table"],
+  ["The Room", "/#room"],
+  ["Journal", "/#journal"],
+  ["About", "/#about"],
 ];
 
-const HOURS = [
-  ["Wed – Thu", "19:00 – 23:00"],
-  ["Fri – Sat", "18:30 – 00:00"],
-  ["Sunday", "13:00 – 17:00"],
-  ["Mon – Tue", "Closed"],
+/** Placeholder profiles: swap the hrefs for the real accounts. */
+const SOCIAL = [
+  {
+    label: "Instagram",
+    href: "#",
+    icon: (
+      <>
+        <rect x="4" y="4" width="16" height="16" rx="4.5" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="12" cy="12" r="3.6" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="16.8" cy="7.2" r="0.9" fill="currentColor" />
+      </>
+    ),
+  },
+  {
+    label: "Facebook",
+    href: "#",
+    icon: (
+      <path
+        d="M13.5 20v-7h2.4l.4-2.8h-2.8V8.4c0-.8.3-1.4 1.4-1.4h1.5V4.5c-.3 0-1.2-.1-2.2-.1-2.2 0-3.6 1.3-3.6 3.7v2.1H8.2V13h2.4v7"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    ),
+  },
+  {
+    label: "Find us",
+    href: "#",
+    icon: (
+      <>
+        <path d="M12 3.5 20.5 12 12 20.5 3.5 12z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M9.5 13.5v-2a1 1 0 0 1 1-1h4m-1.5-1.5 1.5 1.5-1.5 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </>
+    ),
+  },
 ];
 
 export function Footer() {
   return (
-    <footer className="grain relative bg-forest-deep text-cream">
-      <div className="relative mx-auto w-full max-w-[1400px] px-6 py-20 md:px-10">
-        <Reveal y={20}>
-          <div className="grid gap-12 lg:grid-cols-[1.3fr_0.7fr_0.7fr_1.1fr]">
-            <div>
-              <p className="flex items-baseline gap-2 font-display text-3xl lowercase">
-                milli
-                <span className="h-2 w-2 rounded-full bg-ember" />
-              </p>
-              <p className="mt-5 max-w-xs text-[15px] leading-relaxed text-cream/60 text-pretty">
-                A twelve-table kitchen on Rua das Flores, cooking whatever the
-                Lisbon market gave us that morning.
-              </p>
-              <div className="mt-7 flex gap-2.5">
-                {["Instagram", "Substack", "TheFork"].map((s) => (
-                  <a
-                    key={s}
-                    href="#"
-                    className="rounded-full border border-cream/20 px-4 py-2 text-[12px] transition-colors hover:border-amber hover:text-amber"
-                  >
-                    {s}
-                  </a>
-                ))}
-              </div>
-            </div>
+    <footer className="relative isolate overflow-hidden bg-espresso text-cream">
+      <Image
+        src="/img/milli/room-indoor.webp"
+        alt=""
+        aria-hidden
+        fill
+        sizes="100vw"
+        className="-z-10 object-cover opacity-[0.16]"
+      />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-b from-espresso via-espresso/70 to-espresso/90" />
 
-            {COLUMNS.map((col) => (
-              <div key={col.title}>
-                <p className="text-[11px] tracking-[0.22em] text-cream/45 uppercase">
-                  {col.title}
-                </p>
-                <ul className="mt-5 space-y-3 text-[15px]">
-                  {col.links.map((link) => (
-                    <li key={link}>
-                      <a
-                        href="#"
-                        className="text-cream/75 transition-colors hover:text-amber"
-                      >
-                        {link}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+      <div className="mx-auto grid w-full max-w-[1400px] gap-10 px-5 py-14 md:grid-cols-[1fr_auto_1fr] md:items-center md:px-10 md:py-16">
+        <div>
+          <Link href="/" className="wordmark text-[30px]">
+            Milli Milli
+          </Link>
+          <p className="mt-3 max-w-[14rem] text-[13px] leading-relaxed text-cream/65">
+            A small kitchen that cooks the morning market.
+          </p>
+        </div>
+
+        <nav aria-label="Footer">
+          <ul className="flex flex-wrap gap-x-8 gap-y-3 text-[13px]">
+            {LINKS.map(([label, href]) => (
+              <li key={href}>
+                <Link href={href} className="text-cream/80 transition-colors hover:text-ember">
+                  {label}
+                </Link>
+              </li>
             ))}
+          </ul>
+        </nav>
 
-            <div>
-              <p className="text-[11px] tracking-[0.22em] text-cream/45 uppercase">
-                Hours
-              </p>
-              <dl className="mt-5 space-y-3 text-[15px]">
-                {HOURS.map(([day, time]) => (
-                  <div key={day} className="flex justify-between gap-4">
-                    <dt className="text-cream/75">{day}</dt>
-                    <dd
-                      className={
-                        time === "Closed" ? "text-cream/35" : "text-cream/90"
-                      }
-                    >
-                      {time}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-              <address className="mt-6 text-[14px] leading-relaxed text-cream/60 not-italic">
-                Rua das Flores 14
-                <br />
-                1200-194 Lisboa, Portugal
-              </address>
-            </div>
-          </div>
+        <div className="flex flex-col gap-4 md:items-end">
+          <p className="text-[13px] text-cream/70">Since 2019, in Guwahati</p>
+          <ul className="flex gap-3">
+            {SOCIAL.map((s) => (
+              <li key={s.label}>
+                <a
+                  href={s.href}
+                  aria-label={s.label}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-cream/35 text-cream/85 transition-colors hover:border-ember hover:text-ember"
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    {s.icon}
+                  </svg>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
 
-          <div className="mt-16 flex flex-col gap-4 border-t border-cream/12 pt-8 text-[12px] text-cream/45 sm:flex-row sm:items-center sm:justify-between">
-            <p>© {new Date().getFullYear()} Milli. Everything on the menu may change before you arrive.</p>
-            <ul className="flex flex-wrap gap-6">
-              {["Privacy", "Terms", "Allergens", "Accessibility"].map((l) => (
-                <li key={l}>
-                  <a href="#" className="transition-colors hover:text-cream">
-                    {l}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Reveal>
+      <div className="border-t border-cream/10">
+        <p className="mx-auto w-full max-w-[1400px] px-5 py-5 text-[11.5px] text-cream/45 md:px-10">
+          © {new Date().getFullYear()} Milli Milli. Everything on the menu may change before you arrive.
+        </p>
       </div>
     </footer>
   );

@@ -7,6 +7,8 @@ import { fetchItems, type MenuItem } from "@/app/lib/menu-api";
  */
 
 export const HOT = "What's hot tonight?";
+/** The opening chip; answered the same way as HOT. */
+export const TODAY = "Show me today's menu";
 export const VIEW_MENU = "View the menu";
 export const FOOD = "Food items";
 export const DRINKS = "Drinks";
@@ -97,9 +99,14 @@ function loadDrinks() {
 export async function quickPick(input: string): Promise<QuickPick | null> {
   const text = input.trim().toLowerCase();
 
-  if (text === HOT.toLowerCase() || text === "what's hot" || text === "whats hot tonight") {
+  if (
+    text === HOT.toLowerCase() ||
+    text === TODAY.toLowerCase() ||
+    text === "what's hot" ||
+    text === "whats hot tonight"
+  ) {
     return {
-      text: "Here is what I would put on the table tonight:",
+      text: "Here are some popular options from today's menu:",
       dishes: pick(await loadFood(), 4),
       chips: [HOT, VIEW_MENU],
     };

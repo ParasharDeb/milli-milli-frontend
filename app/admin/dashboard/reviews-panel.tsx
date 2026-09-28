@@ -142,7 +142,7 @@ export function ReviewsPanel({
               {r.message ? (
                 <p className="mt-2.5 text-[15px] leading-relaxed">&ldquo;{r.message}&rdquo;</p>
               ) : (
-                <p className="mt-2.5 text-[13px] text-muted italic">No comment left.</p>
+                <p className="mt-2.5 text-[13px] text-muted">No comment left.</p>
               )}
 
               {r.ratings && (

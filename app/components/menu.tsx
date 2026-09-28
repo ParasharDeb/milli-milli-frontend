@@ -1,234 +1,156 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { COURSES, DISHES, rupees, type Course } from "./dishes";
 import { Reveal } from "./reveal";
 
-type Course = {
-  name: string;
-  note: string;
-  price: string;
-  badge?: string;
-  dot: string;
-};
+const TABS: ("All" | Course)[] = ["All", ...COURSES];
 
-const SECTIONS: Record<string, Course[]> = {
-  "To begin": [
-    {
-      name: "Charred leeks, hazelnut, aged sheep",
-      note: "Vinaigrette made from last week's wine",
-      price: "850",
-      dot: "bg-basil",
-      badge: "V",
-    },
-    {
-      name: "Scarlet prawn, lemon, olive oil",
-      note: "Landed at Cascais this morning, served raw",
-      price: "1,450",
-      dot: "bg-ember",
-    },
-    {
-      name: "Bread, cultured butter, smoked salt",
-      note: "Sourdough baked at seven, still warm at eight",
-      price: "450",
-      dot: "bg-amber",
-      badge: "V",
-    },
-  ],
-  Larger: [
-    {
-      name: "Salmon, saffron couscous, avocado",
-      note: "The plate the room is named for",
-      price: "2,200",
-      dot: "bg-ember",
-      badge: "Signature",
-    },
-    {
-      name: "Grain bowl, market vegetables, herbs",
-      note: "Whatever the growers had most of",
-      price: "1,250",
-      dot: "bg-basil",
-      badge: "V",
-    },
-    {
-      name: "Hearth bream, brown butter, capers",
-      note: "Whole fish, for two, thirty minutes",
-      price: "3,400",
-      dot: "bg-terracotta",
-      badge: "For 2",
-    },
-  ],
-  "To finish": [
-    {
-      name: "Burnt honey tart, crème fraîche",
-      note: "Honey from the hills behind Sintra",
-      price: "750",
-      dot: "bg-amber",
-    },
-    {
-      name: "Sheep's milk ice cream, olive oil",
-      note: "Three ingredients, one of them salt",
-      price: "650",
-      dot: "bg-basil",
-      badge: "V",
-    },
-  ],
-};
-
-const TABS = Object.keys(SECTIONS);
+function today() {
+  return new Date().toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
 
 export function Menu() {
-  const [active, setActive] = useState(TABS[0]);
+  const [tab, setTab] = useState<(typeof TABS)[number]>("All");
+  const [featuredId, setFeaturedId] = useState("seabass");
+
+  const dishes = tab === "All" ? DISHES : DISHES.filter((d) => d.course === tab);
+  // The photograph follows the pointer, and falls back to the first dish on
+  // the tab when the one it was showing has been filtered away.
+  const featured = dishes.find((d) => d.id === featuredId) ?? dishes[0];
 
   return (
-    <section id="menu" className="grain relative bg-sand">
-      <div className="relative mx-auto w-full max-w-[1400px] px-6 py-24 md:px-10 lg:py-32">
-        <div className="flex flex-wrap items-end justify-between gap-8">
-          <div>
-            <Reveal as="p" className="eyebrow text-muted">
-              <span className="h-px w-8 bg-ember" />
-              Tonight, 16 September
-            </Reveal>
-            <Reveal delay={0.05}>
-              <h2 className="mt-6 font-display text-[clamp(2.1rem,5vw,3.6rem)] leading-[1] font-light tracking-[-0.03em]">
-                Written at four,
-                <br />
-                gone by eleven.
-              </h2>
-            </Reveal>
-          </div>
-          <Reveal delay={0.1} className="max-w-sm">
-            <p className="text-[15px] leading-relaxed text-muted text-pretty">
-              Order à la carte, or let the kitchen send everything for{" "}
-              <span className="font-medium text-ink">₹5,400 a head</span>. Wine is
-              poured by the glass from whatever bottles we opened first.
+    <section id="menu" className="scroll-mt-16 bg-sand">
+      <div className="mx-auto w-full max-w-[1400px] px-5 py-20 md:px-10 lg:py-28">
+        <div className="rounded-lg bg-cream px-5 py-10 shadow-[0_30px_60px_-45px_rgba(28,20,15,0.5)] sm:px-8 md:px-12 md:py-14">
+          <Reveal>
+            <h2 className="font-display text-[clamp(2.4rem,5vw,3.8rem)] leading-[1] font-light">
+              Tonight&apos;s menu
+            </h2>
+            <p className="mt-3 text-[14.5px] text-muted">
+              A menu built from what the morning market brought in,{" "}
+              <span suppressHydrationWarning>{today()}</span>.
             </p>
           </Reveal>
-        </div>
 
-        <div className="mt-14 grid gap-12 lg:grid-cols-[1fr_0.72fr] lg:gap-16">
-          <div>
-            {/* course tabs */}
-            <Reveal y={20}>
-              <div className="flex flex-wrap gap-2 border-b border-line pb-5">
-                {TABS.map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setActive(tab)}
-                    className={`relative rounded-full px-5 py-2.5 text-sm font-medium transition-colors ${
-                      active === tab
-                        ? "text-cream"
-                        : "text-muted hover:text-ink"
-                    }`}
-                  >
-                    {active === tab && (
-                      <motion.span
-                        layoutId="menu-tab"
-                        transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                        className="absolute inset-0 rounded-full bg-ink"
-                      />
-                    )}
-                    <span className="relative">{tab}</span>
-                  </button>
-                ))}
-              </div>
-            </Reveal>
+          {/* course tabs */}
+          <Reveal delay={0.08}>
+            <div
+              role="tablist"
+              aria-label="Courses"
+              className="no-scrollbar -mx-5 mt-8 flex gap-7 overflow-x-auto border-b border-line px-5 sm:mx-0 sm:px-0 md:gap-10"
+            >
+              {TABS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === t}
+                  onClick={() => setTab(t)}
+                  className={`relative shrink-0 pb-3.5 text-[13px] whitespace-nowrap transition-colors ${
+                    tab === t ? "text-ink" : "text-muted hover:text-ink"
+                  }`}
+                >
+                  {t}
+                  {tab === t && (
+                    <motion.span
+                      layoutId="menu-tab"
+                      transition={{ type: "spring", stiffness: 420, damping: 36 }}
+                      className="absolute inset-x-0 -bottom-px h-[2px] bg-ember"
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+          </Reveal>
 
+          <div className="mt-8 grid gap-10 md:grid-cols-[1fr_0.95fr] md:gap-10 lg:gap-14">
             <AnimatePresence mode="wait">
               <motion.ul
-                key={active}
-                initial={{ opacity: 0, y: 16 }}
+                key={tab}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                className="self-start"
               >
-                {SECTIONS[active].map((course, i) => (
-                  <motion.li
-                    key={course.name}
-                    initial={{ opacity: 0, y: 18 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.5,
-                      delay: i * 0.07,
-                      ease: [0.16, 1, 0.3, 1],
-                    }}
-                    className="group border-b border-line"
-                  >
-                    <div className="flex items-baseline gap-4 py-6 transition-transform duration-500 ease-out group-hover:translate-x-2">
-                      <span
-                        className={`mt-2 h-2 w-2 shrink-0 rounded-full ${course.dot} transition-transform duration-500 group-hover:scale-150`}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <h3 className="flex flex-wrap items-center gap-2.5 font-display text-xl leading-snug font-light sm:text-2xl">
-                          {course.name}
-                          {course.badge && (
-                            <span className="rounded-full border border-line bg-cream px-2.5 py-0.5 text-[10px] font-medium tracking-[0.14em] text-muted uppercase">
-                              {course.badge}
-                            </span>
-                          )}
-                        </h3>
-                        <p className="mt-1.5 text-sm text-muted">{course.note}</p>
-                      </div>
-                      <span className="font-display text-xl tabular-nums">
-                        ₹{course.price}
+                {dishes.map((dish) => (
+                  <li key={dish.id}>
+                    <button
+                      type="button"
+                      onMouseEnter={() => setFeaturedId(dish.id)}
+                      onFocus={() => setFeaturedId(dish.id)}
+                      onClick={() => setFeaturedId(dish.id)}
+                      className="group flex w-full items-baseline justify-between gap-6 py-3.5 text-left"
+                    >
+                      <span className="min-w-0">
+                        <span
+                          className={`block font-display text-[21px] leading-tight transition-colors ${
+                            featured?.id === dish.id ? "text-ember" : "group-hover:text-ember"
+                          }`}
+                        >
+                          {dish.name}
+                        </span>
+                        <span className="mt-0.5 block text-[12.5px] text-muted">{dish.note}</span>
                       </span>
-                    </div>
-                  </motion.li>
+                      <span className="shrink-0 text-[14px] tabular-nums text-ink/80">
+                        {rupees(dish.price)}
+                      </span>
+                    </button>
+                  </li>
                 ))}
               </motion.ul>
             </AnimatePresence>
 
-            <Reveal y={16} delay={0.1}>
-              <p className="mt-7 text-[13px] text-muted">
-                V = vegetarian. Tell us about allergies when you book — the menu
-                changes daily and we will work around almost anything.
-              </p>
-            </Reveal>
+            {featured && (
+              <figure className="md:sticky md:top-28 md:self-start">
+                <div className="relative aspect-[4/3.6] overflow-hidden rounded-sm bg-sand">
+                  <AnimatePresence initial={false}>
+                    <motion.div
+                      key={featured.id}
+                      initial={{ opacity: 0, scale: 1.04 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                      className="absolute inset-0"
+                    >
+                      <Image
+                        src={featured.img}
+                        alt={featured.alt}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 40vw"
+                        className="object-cover"
+                      />
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+                <figcaption className="mt-3">
+                  <p className="text-[12.5px] text-ink/85">{featured.name}</p>
+                  <p className="text-[11.5px] text-muted">{featured.note}</p>
+                </figcaption>
+              </figure>
+            )}
           </div>
 
-          {/* featured plate */}
-          <Reveal delay={0.08}>
-            <div className="lg:sticky lg:top-28">
-              <div className="group relative aspect-[4/5] overflow-hidden rounded-[2rem] bg-parchment">
-                <Image
-                  src="/img/dish-grainbowl.webp"
-                  alt="Market vegetable grain bowl with roasted carrots, beets and whipped labneh"
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 32vw"
-                  className="object-cover transition-transform duration-[900ms] group-hover:scale-[1.05]"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-ink/5 to-transparent" />
-                <div className="absolute inset-x-5 bottom-5 text-cream">
-                  <span className="inline-block rounded-full bg-amber px-3 py-1 text-[10px] font-semibold tracking-[0.16em] text-ink uppercase">
-                    Most ordered
-                  </span>
-                  <h3 className="mt-3 font-display text-2xl leading-tight font-light">
-                    Grain bowl, market vegetables, herbs
-                  </h3>
-                  <p className="mt-2 text-sm text-cream/75">
-                    Barley and freekeh, roasted roots, whipped labneh, pistachio.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl border border-line bg-cream p-5">
-                  <p className="font-display text-3xl leading-none">₹5,400</p>
-                  <p className="mt-2 text-[12px] leading-snug text-muted">
-                    Full menu, per person
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-line bg-cream p-5">
-                  <p className="font-display text-3xl leading-none">19:00</p>
-                  <p className="mt-2 text-[12px] leading-snug text-muted">
-                    One seating, Wed – Sun
-                  </p>
-                </div>
-              </div>
-            </div>
-          </Reveal>
+          <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-6">
+            <p className="text-[12.5px] text-muted">
+              Tell us about allergies when you book — we will work around almost anything.
+            </p>
+            <Link
+              href="/menu"
+              className="group inline-flex items-center gap-2 text-[13px] text-ember hover:text-ink"
+            >
+              See the full menu
+              <span className="transition-transform group-hover:translate-x-1">→</span>
+            </Link>
+          </div>
         </div>
       </div>
     </section>

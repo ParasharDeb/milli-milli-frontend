@@ -132,10 +132,6 @@ function LoginCard({
               >
                 ✕
               </button>
-              <p className="eyebrow text-amber">
-                <span className="h-px w-6 bg-amber" />
-                Milli account
-              </p>
               <h2
                 id="login-card-title"
                 className="relative mt-4 font-display text-[1.75rem] leading-tight font-light"
@@ -152,7 +148,7 @@ function LoginCard({
             <form onSubmit={handleSubmit} className="px-7 pt-6 pb-7">
               <label
                 htmlFor="phone"
-                className="text-[11px] tracking-[0.18em] text-muted uppercase"
+                className="text-[12.5px] text-muted"
               >
                 Mobile number
               </label>

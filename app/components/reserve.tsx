@@ -1,89 +1,126 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { motion } from "motion/react";
-import { BookingForm } from "./booking-form";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { DatePicker } from "./date-picker";
 import { Reveal } from "./reveal";
 
-export function Reserve() {
+const TIMES = ["18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"];
+const GUESTS = [1, 2, 3, 4, 5, 6];
+
+function isoToday() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+
+const field =
+  "w-full appearance-none rounded-md border border-cream/25 bg-espresso/40 px-4 py-3 text-[13px] text-cream [color-scheme:dark] backdrop-blur transition-colors focus:border-ember focus:outline-none";
+
+function Chevron() {
   return (
-    <section
-      id="reserve"
-      className="grain relative overflow-hidden bg-ink text-cream"
+    <svg
+      aria-hidden
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-cream/70"
     >
+      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function Reserve() {
+  const router = useRouter();
+  const [date, setDate] = useState(isoToday);
+  const [time, setTime] = useState("20:30");
+  const [guests, setGuests] = useState(2);
+
+  return (
+    <section id="reserve" className="relative isolate scroll-mt-16 overflow-hidden bg-espresso text-cream">
       <Image
-        src="/img/table-night.webp"
+        src="/img/milli/outdoor-garden.webp"
         alt=""
         aria-hidden
         fill
         sizes="100vw"
-        className="object-cover opacity-45"
+        className="-z-10 object-cover object-[70%_50%]"
       />
       <div
         aria-hidden
-        className="absolute inset-0 bg-[linear-gradient(100deg,rgba(21,18,16,0.96)_18%,rgba(21,18,16,0.72)_52%,rgba(21,18,16,0.35)_100%)]"
-      />
-      <motion.div
-        aria-hidden
-        animate={{ opacity: [0.5, 0.85, 0.5] }}
-        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -top-32 right-[8%] h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,rgba(233,163,25,0.28),transparent_65%)] blur-2xl"
+        className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(20,14,10,0.94)_0%,rgba(20,14,10,0.78)_45%,rgba(20,14,10,0.35)_100%)] max-md:bg-[rgba(20,14,10,0.8)]"
       />
 
-      <div className="relative mx-auto grid w-full max-w-[1400px] gap-14 px-6 py-24 md:px-10 lg:grid-cols-[1fr_0.8fr] lg:items-center lg:py-32">
-        <div>
-          <Reveal as="p" className="eyebrow text-amber">
-            <span className="h-px w-8 bg-amber" />
-            Reservations
-          </Reveal>
+      <div className="mx-auto w-full max-w-[1400px] px-5 py-20 md:px-10 lg:py-28">
+        <Reveal>
+          <h2 className="font-display text-[clamp(2.5rem,5vw,4rem)] leading-[1] font-light">
+            Book your table
+          </h2>
+          <p className="mt-3 text-[14px] text-cream/75">Good food, better company.</p>
+        </Reveal>
 
-          <Reveal delay={0.05}>
-            <h2 className="mt-7 max-w-2xl font-display text-[clamp(2.4rem,6vw,4.6rem)] leading-[0.98] font-light tracking-[-0.03em] text-balance">
-              Twelve tables.
-              <br />
-              <span className="text-amber italic">Take one.</span>
-            </h2>
-          </Reveal>
-
-          <Reveal delay={0.12}>
-            <p className="mt-8 max-w-md text-[17px] leading-relaxed text-cream/70 text-pretty">
-              Bookings open two weeks ahead, at nine on Monday mornings. Tables
-              of five or more, and the back room, go through the phone.
-            </p>
-          </Reveal>
-
-          <Reveal delay={0.18}>
-            <dl className="mt-10 flex flex-wrap gap-x-12 gap-y-6 border-t border-cream/15 pt-8">
-              {[
-                ["Call us", "+351 21 000 0000"],
-                ["Write", "ola@milli.pt"],
-                ["Find us", "Rua das Flores 14"],
-              ].map(([k, v]) => (
-                <div key={k}>
-                  <dt className="text-[11px] tracking-[0.18em] text-cream/50 uppercase">
-                    {k}
-                  </dt>
-                  <dd className="mt-1.5 text-[15px]">{v}</dd>
-                </div>
-              ))}
-            </dl>
-          </Reveal>
-        </div>
-
-        {/* booking card */}
         <Reveal delay={0.1}>
-          <BookingForm />
-          <p className="mt-4 text-center text-[12px] text-cream/50">
-            Need a large table or the back room?{" "}
-            <Link
-              href="/reserve-table"
-              className="underline underline-offset-2 hover:text-amber"
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              // The reservation page picks these up and fills its own form in.
+              router.push(`/reserve-table?${new URLSearchParams({ date, time, guests: String(guests) })}`);
+            }}
+            className="mt-10 max-w-[40rem]"
+          >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1.35fr_1fr_1fr] sm:gap-4">
+              <div className="col-span-2 block sm:col-span-1">
+                <span className="text-[11.5px] text-cream/75">Date</span>
+                <DatePicker value={date} min={isoToday()} onChange={setDate} className={field} />
+              </div>
+              <label className="block">
+                <span className="text-[11.5px] text-cream/75">Time</span>
+                <span className="relative mt-2 block">
+                  <select value={time} onChange={(e) => setTime(e.target.value)} className={field}>
+                    {TIMES.map((t) => (
+                      <option key={t} value={t} className="bg-espresso">
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                  <Chevron />
+                </span>
+              </label>
+              <label className="block">
+                <span className="text-[11.5px] text-cream/75">Guests</span>
+                <span className="relative mt-2 block">
+                  <select
+                    value={guests}
+                    onChange={(e) => setGuests(Number(e.target.value))}
+                    className={field}
+                  >
+                    {GUESTS.map((g) => (
+                      <option key={g} value={g} className="bg-espresso">
+                        {g}
+                      </option>
+                    ))}
+                  </select>
+                  <Chevron />
+                </span>
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              className="group mt-7 inline-flex w-full items-center justify-center gap-2 rounded-full bg-ember px-10 py-3.5 text-[13px] font-medium text-cream transition-colors hover:bg-[#e8703f] sm:w-auto sm:min-w-[20rem]"
             >
-              See all the details
-            </Link>
-            .
-          </p>
+              Check availability
+              <span className="transition-transform group-hover:translate-x-1">→</span>
+            </button>
+
+            <p className="mt-5 flex items-center gap-2.5 text-[12.5px] text-cream/80">
+              <span className="h-2 w-2 rounded-full bg-[#3fb27f]" />
+              3 tables available tonight
+            </p>
+          </form>
         </Reveal>
       </div>
     </section>
