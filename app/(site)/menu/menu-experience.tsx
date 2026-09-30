@@ -2,89 +2,45 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Reveal } from "@/app/components/reveal";
 import { useCart } from "@/app/lib/cart-context";
+import { useCartDrawer } from "@/app/components/cart-drawer";
 import { CATEGORIES, type Category, type Dish } from "./menu-data";
 import { MenuWelcome } from "./menu-welcome";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
-/** How many dishes a course lists before "Show all". */
-const LIST_PREVIEW = 8;
-
-type CourseCopy = {
-  title: [string, string];
-  body: string;
-  card: string;
-  img: string;
-};
-
 /**
- * Copy and photography for each course. Keyed by the adapter's group ids, with
- * the bundled fallback menu's ids mapped onto the nearest one.
+ * `Dish.id` is the real item uuid when the page rendered from the API. The
+ * bundled fallback menu uses slugs, which the backend would reject.
  */
-const COURSE: Record<string, CourseCopy> = {
-  small: {
-    title: ["Bold beginnings", "for a long evening."],
-    body: "Light, seasonal plates to start the conversation. Flavours that are fresh, vibrant and meant to be shared.",
-    card: "Fresh, vibrant and meant to be shared.",
-    img: "/img/milli/course-small.webp",
-  },
-  mains: {
-    title: ["The heart", "of the table."],
-    body: "Cooked to order and sent as they are ready: slow curries, wood-fired plates and pasta rolled that morning.",
-    card: "Heartier dishes from land and sea.",
-    img: "/img/milli/course-mains.webp",
-  },
-  breads: {
-    title: ["Straight off", "the fire."],
-    body: "Kulchas, flatbreads and sourdough from the oven, brought over in batches while you eat.",
-    card: "Freshly baked, to go with everything.",
-    img: "/img/milli/course-breads.webp",
-  },
-  sweets: {
-    title: ["A sweet", "ending."],
-    body: "Made in-house every afternoon. One each, or one between two if the table is honest about it.",
-    card: "A sweet ending, seasonal and delicate.",
-    img: "/img/milli/course-desserts.webp",
-  },
-};
-const ALIAS: Record<string, keyof typeof COURSE> = {
-  rice: "mains",
-  gravies: "mains",
-  desserts: "sweets",
-};
+const ORDERABLE = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
 
-function courseCopy(category: Category): CourseCopy {
-  return COURSE[category.id] ?? COURSE[ALIAS[category.id] ?? "mains"];
-}
+type Filter = "veg" | "nonveg" | "bestseller";
 
-function rupees(n?: number) {
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: "veg", label: "Veg" },
+  { id: "nonveg", label: "Non-veg" },
+  { id: "bestseller", label: "Bestseller" },
+];
+
+function rupees(n?: number | null) {
   return n == null ? null : `₹${Math.round(n).toLocaleString("en-IN")}`;
 }
 
-function pad(n: number) {
-  return String(n).padStart(2, "0");
+function today() {
+  return new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long" });
 }
 
-function today() {
-  return new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-}
+const isVeg = (d: Dish) => d.tags.includes("Vegetarian");
 
 /**
  * The bundled fallback photographs are cut-outs on white, so they sit on a
  * plain ground rather than being cropped to fill.
  */
-function DishPhoto({ dish, sizes, priority }: { dish: Dish; sizes: string; priority?: boolean }) {
-  if (!dish.img) {
-    return (
-      <span className="flex h-full w-full items-center justify-center bg-sand font-display text-6xl text-muted/50">
-        {dish.name.trim().charAt(0)}
-      </span>
-    );
-  }
+function DishPhoto({ dish, sizes }: { dish: Dish; sizes: string }) {
+  if (!dish.img) return null;
   const cutout = dish.img.startsWith("/img/menu/");
   return (
     <Image
@@ -92,450 +48,531 @@ function DishPhoto({ dish, sizes, priority }: { dish: Dish; sizes: string; prior
       alt={dish.name}
       fill
       sizes={sizes}
-      priority={priority}
       className={cutout ? "bg-[#f4efe7] object-contain p-[8%]" : "object-cover"}
     />
   );
 }
 
-function ArrowIcon({ dir = "right" }: { dir?: "left" | "right" }) {
+/** The square-and-dot food mark: green circle for veg, red triangle otherwise. */
+function DietMark({ veg }: { veg: boolean }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d={dir === "left" ? "M19 12H5m6-6-6 6 6 6" : "M5 12h14m-6-6 6 6-6 6"}
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <span
+      role="img"
+      aria-label={veg ? "Vegetarian" : "Non-vegetarian"}
+      className={`inline-flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border-[1.5px] ${
+        veg ? "border-basil" : "border-[#b33a2b]"
+      }`}
+    >
+      {veg ? (
+        <span className="h-[7px] w-[7px] rounded-full bg-basil" />
+      ) : (
+        <span className="h-0 w-0 border-x-[4px] border-b-[7px] border-x-transparent border-b-[#b33a2b]" />
+      )}
+    </span>
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+      className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+    >
+      <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function RoundButton({
-  onClick,
-  label,
-  dir,
-  tone = "light",
-}: {
-  onClick: () => void;
-  label: string;
-  dir: "left" | "right";
-  tone?: "light" | "dark";
-}) {
+function ArrowButton({ dir, onClick }: { dir: "left" | "right"; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={label}
-      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors ${
-        tone === "dark"
-          ? "border-cream/40 text-cream hover:bg-cream hover:text-ink"
-          : "border-ink/25 text-ink hover:border-ink hover:bg-ink hover:text-cream"
-      }`}
+      aria-label={dir === "left" ? "Scroll back" : "Scroll on"}
+      className="flex h-8 w-8 items-center justify-center rounded-full bg-ink/[0.07] text-ink/70 transition-colors hover:bg-ink/[0.12] hover:text-ink"
     >
-      <ArrowIcon dir={dir} />
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path
+          d={dir === "left" ? "M19 12H5m6-6-6 6 6 6" : "M5 12h14m-6-6 6 6-6 6"}
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
     </button>
   );
 }
 
+/** ADD, which becomes a − n + stepper once the dish is in the order. */
+function AddControl({ dish, className = "" }: { dish: Dish; className?: string }) {
+  const { cart, busy, add, setQty, remove } = useCart();
+  const qty = cart?.lines.find((l) => l.item.id === dish.id)?.qty ?? 0;
+  const orderable = ORDERABLE.test(dish.id);
 
-export function MenuExperience({ categories = CATEGORIES }: { categories?: Category[] }) {
-  const { add, busy } = useCart();
-  const [categoryId, setCategoryId] = useState(categories[0]!.id);
-  const [dishId, setDishId] = useState(categories[0]!.items[0]!.id);
-  const [showAll, setShowAll] = useState(false);
-  const [justAdded, setJustAdded] = useState(false);
-  const featuredRef = useRef<HTMLElement>(null);
-  const discoverRef = useRef<HTMLDivElement>(null);
+  const base =
+    "flex h-10 w-[118px] items-center justify-center rounded-lg border border-ink/10 bg-white text-[15px] font-extrabold text-basil shadow-[0_3px_8px_rgba(28,20,15,0.08)]";
 
-  const category = categories.find((c) => c.id === categoryId) ?? categories[0]!;
-  const index = Math.max(0, category.items.findIndex((d) => d.id === dishId));
-  const dish = category.items[index]!;
-  const copy = courseCopy(category);
-  const listed = showAll ? category.items : category.items.slice(0, LIST_PREVIEW);
-
-  /**
-   * `Dish.id` is the real item uuid when the page rendered from the API. The
-   * bundled fallback menu uses slugs, which the backend would reject.
-   */
-  const canOrder = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(dish.id);
-
-  function pickCategory(id: string, scroll = false) {
-    const next = categories.find((c) => c.id === id);
-    if (!next) return;
-    setCategoryId(id);
-    setDishId(next.items[0]!.id);
-    setShowAll(false);
-    if (scroll) featuredRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  function step(direction: 1 | -1) {
-    const n = category.items.length;
-    setDishId(category.items[(index + direction + n) % n]!.id);
-  }
-
-  async function handleAdd() {
-    if (!canOrder) return;
-    await add(dish.id);
-    setJustAdded(true);
-    window.setTimeout(() => setJustAdded(false), 1600);
+  if (qty > 0) {
+    return (
+      <div className={`${base} justify-between px-1 ${className}`}>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => (qty === 1 ? remove(dish.id) : setQty(dish.id, qty - 1))}
+          aria-label={`Remove one ${dish.name}`}
+          className="flex h-full w-9 items-center justify-center text-lg disabled:opacity-50"
+        >
+          −
+        </button>
+        <span className="tabular-nums">{qty}</span>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => add(dish.id)}
+          aria-label={`Add one more ${dish.name}`}
+          className="flex h-full w-9 items-center justify-center text-lg disabled:opacity-50"
+        >
+          +
+        </button>
+      </div>
+    );
   }
 
   return (
-    <>
-      {/* ------------------------------------------------------------ hero */}
-      <section className="relative isolate overflow-hidden bg-espresso text-cream">
-        <Image
-          src="/img/milli/menu-hero.webp"
-          alt=""
-          aria-hidden
-          fill
-          priority
-          sizes="100vw"
-          className="-z-10 object-cover object-[80%_50%]"
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(20,14,10,0.92)_0%,rgba(20,14,10,0.6)_38%,rgba(20,14,10,0.05)_70%)] max-md:bg-[linear-gradient(180deg,rgba(20,14,10,0.55)_0%,rgba(20,14,10,0.85)_100%)]"
-        />
-        {/* keeps the nav legible where it crosses the plate */}
-        <div aria-hidden className="absolute inset-x-0 top-0 -z-10 h-32 bg-gradient-to-b from-espresso/75 to-transparent" />
+    <button
+      type="button"
+      disabled={busy || !orderable}
+      onClick={() => add(dish.id)}
+      title={orderable ? undefined : "Ordering opens when the kitchen is online"}
+      className={`${base} uppercase transition-colors hover:bg-[#f2f2f2] disabled:cursor-not-allowed disabled:text-ink/30 ${className}`}
+    >
+      Add
+    </button>
+  );
+}
 
-        <div className="relative mx-auto w-full max-w-[1400px] px-5 pt-32 pb-14 md:px-10 md:pt-40 md:pb-20">
-          <h1 className="font-display text-[clamp(3.4rem,8vw,6.6rem)] leading-[0.95] font-light">
-            Tonight&apos;s
-            <br />
-            menu
-          </h1>
-          <p className="mt-6 max-w-xs text-[15.5px] leading-relaxed text-cream/80">
-            A menu built from what the morning market brought in,{" "}
-            <span suppressHydrationWarning>{today()}</span>.
-          </p>
+function DishRow({ dish }: { dish: Dish }) {
+  const [expanded, setExpanded] = useState(false);
+  const [long, setLong] = useState(false);
+  const descRef = useRef<HTMLParagraphElement>(null);
 
-          <div role="tablist" aria-label="Courses" className="no-scrollbar -mx-5 mt-9 flex gap-2 overflow-x-auto px-5 md:mx-0 md:px-0">
-            {categories.map((c) => {
-              const on = c.id === category.id;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={on}
-                  onClick={() => pickCategory(c.id)}
-                  className={`relative shrink-0 rounded-full px-5 py-2.5 text-[13px] whitespace-nowrap transition-colors ${
-                    on ? "text-ink" : "text-cream/85 hover:text-cream"
-                  }`}
-                >
-                  {on && (
-                    <motion.span
-                      layoutId="menu-hero-pill"
-                      transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                      className="absolute inset-0 rounded-full bg-cream"
-                    />
-                  )}
-                  <span className="relative">{c.label}</span>
-                </button>
-              );
-            })}
-          </div>
+  // "more" only when the two-line clamp is actually hiding something.
+  useLayoutEffect(() => {
+    const el = descRef.current;
+    if (el && !expanded) setLong(el.scrollHeight > el.clientHeight + 1);
+  }, [dish.desc, expanded]);
 
+  return (
+    <article className="flex gap-4 py-7 md:gap-10">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <DietMark veg={isVeg(dish)} />
+          {dish.bestseller && (
+            <span className="inline-flex items-center gap-1 text-[13px] font-bold text-ember">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z" />
+              </svg>
+              Bestseller
+            </span>
+          )}
         </div>
-      </section>
+        <h3 className="mt-1.5 text-[17px] leading-snug font-bold text-ink/85">{dish.name}</h3>
+        {rupees(dish.price) && (
+          <p className="mt-1 text-[15px] font-semibold text-ink/85 tabular-nums">{rupees(dish.price)}</p>
+        )}
+        {dish.spice > 0 && (
+          <p className="mt-2 flex items-center gap-1.5 text-[12.5px] font-semibold text-ember">
+            {"🌶".repeat(dish.spice)}
+            <span className="font-medium text-ink/50">
+              {dish.spice === 3 ? "Hot" : dish.spice === 2 ? "Medium" : "Mild"}
+            </span>
+          </p>
+        )}
+        <p ref={descRef} className={`mt-2.5 text-[15px] leading-[1.45] text-ink/55 ${expanded ? "" : "line-clamp-2"}`}>
+          {dish.desc}
+        </p>
+        {long && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="mt-0.5 text-[14px] font-bold text-ink/60 hover:text-ink"
+          >
+            {expanded ? "less" : "more"}
+          </button>
+        )}
+      </div>
 
+      <div className="relative shrink-0 self-start">
+        {dish.img ? (
+          <>
+            <div className="relative h-[130px] w-[140px] overflow-hidden rounded-xl bg-sand md:h-[144px] md:w-[156px]">
+              <DishPhoto dish={dish} sizes="156px" />
+            </div>
+            <AddControl dish={dish} className="absolute -bottom-4 left-1/2 -translate-x-1/2" />
+          </>
+        ) : (
+          <div className="flex w-[140px] justify-center pt-8 md:w-[156px]">
+            <AddControl dish={dish} />
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function TopPicks({ dishes }: { dishes: Dish[] }) {
+  const rail = useRef<HTMLDivElement>(null);
+  if (dishes.length === 0) return null;
+  const scroll = (dx: number) => rail.current?.scrollBy({ left: dx, behavior: "smooth" });
+
+  return (
+    <section className="mt-8">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[20px] font-extrabold tracking-tight">Top picks</h2>
+        <div className="flex gap-2">
+          <ArrowButton dir="left" onClick={() => scroll(-300)} />
+          <ArrowButton dir="right" onClick={() => scroll(300)} />
+        </div>
+      </div>
+      <div ref={rail} className="no-scrollbar -mx-4 mt-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
+        {dishes.map((d) => (
+          <article
+            key={d.id}
+            className="relative flex h-[280px] w-[250px] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-2xl bg-espresso p-4 text-white"
+          >
+            <DishPhoto dish={d} sizes="250px" />
+            <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent via-40% to-black/70" />
+            <div className="relative flex items-start gap-2">
+              <span className="mt-0.5 rounded-[3px] bg-white p-[1px]">
+                <DietMark veg={isVeg(d)} />
+              </span>
+              <h3 className="line-clamp-2 text-[16px] leading-snug font-bold">{d.name}</h3>
+            </div>
+            <div className="relative flex items-center justify-between gap-3">
+              <span className="text-[16px] font-bold tabular-nums">{rupees(d.price)}</span>
+              <AddControl dish={d} className="!w-[100px]" />
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function MenuExperience({ categories = CATEGORIES }: { categories?: Category[] }) {
+  const { cart } = useCart();
+  const { open: openCart } = useCartDrawer();
+  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState<Set<Filter>>(new Set());
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [browsing, setBrowsing] = useState(false);
+
+  const totalDishes = categories.reduce((n, c) => n + c.items.length, 0);
+  const vegCount = categories.reduce((n, c) => n + c.items.filter(isVeg).length, 0);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const keep = (d: Dish) =>
+      (!q || d.name.toLowerCase().includes(q) || d.desc.toLowerCase().includes(q)) &&
+      (!filters.has("veg") || isVeg(d)) &&
+      (!filters.has("nonveg") || !isVeg(d)) &&
+      (!filters.has("bestseller") || d.bestseller);
+    return categories
+      .map((c) => ({ ...c, items: c.items.filter(keep) }))
+      .filter((c) => c.items.length > 0);
+  }, [categories, query, filters]);
+
+  const narrowed = query.trim() !== "" || filters.size > 0;
+
+  // Photographed dishes, a few from each course, for the rail up top. Real
+  // photographs first; the cut-out library only when nothing else exists.
+  const picks = useMemo(() => {
+    const from = (ok: (d: Dish) => boolean) =>
+      categories.flatMap((c) => c.items.filter(ok).slice(0, 3)).slice(0, 10);
+    const shot = from((d) => Boolean(d.img && !d.img.startsWith("/img/menu/")));
+    return shot.length >= 3 ? shot : from((d) => Boolean(d.img));
+  }, [categories]);
+  const hasBestsellers = categories.some((c) => c.items.some((d) => d.bestseller));
+
+  function toggleFilter(f: Filter) {
+    setFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(f)) next.delete(f);
+      else {
+        next.add(f);
+        // Veg and non-veg exclude each other.
+        if (f === "veg") next.delete("nonveg");
+        if (f === "nonveg") next.delete("veg");
+      }
+      return next;
+    });
+  }
+
+  function toggleCategory(id: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function jumpTo(id: string) {
+    setBrowsing(false);
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    document.getElementById(`course-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  const itemsInCart = cart?.totalItems ?? 0;
+
+  return (
+    <div className="bg-white">
+      {/* the nav floats in light type until scrolled, so it needs a dark ground */}
+      <div aria-hidden className="h-[68px] bg-espresso md:h-[88px]" />
       <MenuWelcome />
 
-      {/* ------------------------------------------------------- featured */}
-      <section
-        ref={featuredRef}
-        id="featured"
-        className="relative scroll-mt-16 overflow-hidden bg-[#efe7db]"
-      >
-        {/* the dish, bleeding off the right edge */}
-        <div className="relative aspect-square w-full md:absolute md:inset-y-0 md:right-0 md:aspect-auto md:w-[56%]">
-          <AnimatePresence initial={false}>
-            <motion.div
-              key={dish.id}
-              initial={{ opacity: 0, scale: 1.04 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.7, ease: EASE_OUT }}
-              className="absolute inset-0"
-            >
-              <DishPhoto dish={dish} sizes="(max-width: 768px) 100vw, 56vw" priority />
-            </motion.div>
-          </AnimatePresence>
-          <div
-            aria-hidden
-            className="absolute inset-0 hidden bg-gradient-to-r from-[#efe7db] via-[#efe7db]/40 via-15% to-transparent to-45% md:block"
-          />
+      <div className={`mx-auto w-full max-w-[800px] px-4 pt-6 ${itemsInCart > 0 ? "pb-32" : "pb-24"}`}>
+        {/* ------------------------------------------------ breadcrumb */}
+        <nav aria-label="Breadcrumb" className="text-[12px] text-ink/45">
+          <Link href="/" className="hover:text-ink">
+            Home
+          </Link>
+          <span className="mx-1.5">/</span>
+          <span className="text-ink/70">Menu</span>
+        </nav>
+
+        {/* --------------------------------------------- restaurant card */}
+        <h1 className="mt-6 px-1 text-[26px] font-extrabold tracking-tight">Milli Milli</h1>
+
+        <div className="mt-4 rounded-[28px] bg-gradient-to-b from-white to-[#e9e9ee] px-4 pb-4">
+          <div className="rounded-[20px] border border-ink/[0.08] bg-white p-4 shadow-[0_8px_16px_rgba(28,20,15,0.06)]">
+            <p className="flex flex-wrap items-center gap-x-2 text-[16px] font-bold">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-basil text-[10px] text-white">
+                  ★
+                </span>
+                Tonight&apos;s market menu
+              </span>
+              <span className="text-ink/30">•</span>
+              <span suppressHydrationWarning>{today()}</span>
+            </p>
+            <p className="mt-1.5 text-[14px] font-semibold text-ember underline underline-offset-2">
+              {categories.map((c) => c.label).join(", ")}
+            </p>
+
+            <div className="mt-4 flex gap-3">
+              <div className="flex flex-col items-center pt-1.5">
+                <span className="h-[7px] w-[7px] rounded-full bg-ink/25" />
+                <span className="h-6 w-px bg-ink/20" />
+                <span className="h-[7px] w-[7px] rounded-full bg-ink/25" />
+              </div>
+              <div className="space-y-2.5 text-[14px]">
+                <p>
+                  <span className="font-bold">Kitchen</span>{" "}
+                  <span className="text-ink/55">— {totalDishes} dishes, cooked to order</span>
+                </p>
+                <p>
+                  <span className="font-bold">Your table</span>{" "}
+                  <span className="text-ink/55">— sent as they are ready</span>
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="relative mx-auto w-full max-w-[1400px] px-5 py-12 md:flex md:min-h-[600px] md:items-center md:px-10 md:py-20">
-          <div className="md:w-[42%]">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={dish.id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.4, ease: EASE_OUT }}
+        {/* ----------------------------------------------- search + filters */}
+        <p className="mt-10 text-center text-[13px] font-semibold tracking-[0.35em] text-ink/55">
+          <span className="text-ink/25">~</span> MENU <span className="text-ink/25">~</span>
+        </p>
+
+        <label className="mt-5 flex h-12 items-center gap-3 rounded-xl bg-[#f0f0f5] px-4 text-ink/50 focus-within:ring-2 focus-within:ring-ink/10">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search for dishes"
+            className="h-full flex-1 bg-transparent text-center text-[15px] font-semibold text-ink placeholder:text-ink/45 focus:outline-none"
+          />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+            <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </label>
+
+        <div className="no-scrollbar mt-4 flex gap-2.5 overflow-x-auto border-b border-ink/10 pb-5">
+          {FILTERS.map((f) => {
+            const on = filters.has(f.id);
+            if (f.id === "veg" && vegCount === 0) return null;
+            if (f.id === "nonveg" && vegCount === totalDishes) return null;
+            if (f.id === "bestseller" && !hasBestsellers) return null;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => toggleFilter(f.id)}
+                className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-2 text-[14px] font-semibold shadow-[0_2px_6px_rgba(28,20,15,0.05)] transition-colors ${
+                  on ? "border-ink/40 bg-[#f0f0f5] text-ink" : "border-ink/12 text-ink/70 hover:border-ink/25"
+                }`}
               >
-                {rupees(dish.price) && (
-                  <p className="font-display text-[34px] leading-none text-ember">{rupees(dish.price)}</p>
-                )}
-                <h2 className="mt-3 font-display text-[clamp(2.3rem,4.4vw,3.6rem)] leading-[1.02] font-light text-balance">
-                  {dish.name}
-                </h2>
-                <p className="mt-4 max-w-sm text-[15.5px] leading-relaxed text-muted">{dish.desc}</p>
+                {f.id === "veg" && <DietMark veg />}
+                {f.id === "nonveg" && <DietMark veg={false} />}
+                {f.label}
+                {on && <span className="text-[12px] text-ink/50">✕</span>}
+              </button>
+            );
+          })}
+        </div>
 
-                {(dish.tags.length > 0 || dish.spice > 0) && (
-                  <div className="mt-6 flex flex-wrap gap-2">
-                    {dish.tags.slice(0, 3).map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full border border-ink/15 px-3.5 py-1.5 text-[12.5px] text-ink/75"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                    {dish.spice > 0 && (
-                      <span
-                        className="inline-flex items-center gap-2 rounded-full border border-ink/15 px-3.5 py-1.5 text-[12.5px] text-ink/75"
-                        aria-label={`Heat ${dish.spice} of 3`}
-                      >
-                        Heat
-                        <span className="flex gap-1">
-                          {[1, 2, 3].map((n) => (
-                            <span
-                              key={n}
-                              className={`h-1.5 w-1.5 rounded-full ${n <= dish.spice ? "bg-ember" : "bg-ink/15"}`}
-                            />
-                          ))}
-                        </span>
-                      </span>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
+        {!narrowed && <TopPicks dishes={picks} />}
 
+        {/* ------------------------------------------------- the courses */}
+        {visible.length === 0 ? (
+          <div className="py-20 text-center">
+            <p className="text-[17px] font-bold">No dishes match</p>
+            <p className="mt-1 text-[14px] text-ink/50">Try a different search or clear the filters.</p>
             <button
               type="button"
-              onClick={handleAdd}
-              disabled={busy || justAdded || !canOrder}
-              className="group mt-8 inline-flex items-center gap-2.5 rounded-full bg-ink px-7 py-3.5 text-[13px] font-medium text-cream transition-colors hover:bg-ember disabled:opacity-70"
+              onClick={() => {
+                setQuery("");
+                setFilters(new Set());
+              }}
+              className="mt-5 rounded-lg border border-ink/15 px-5 py-2.5 text-[14px] font-bold text-ember"
             >
-              {justAdded ? "Added to your order" : "Add to order"}
-              <span className="transition-transform group-hover:translate-x-1">{justAdded ? "✓" : "→"}</span>
+              Clear all
             </button>
-
-            <div className="mt-8 flex items-center gap-3">
-              <RoundButton dir="left" label="Previous dish" onClick={() => step(-1)} />
-              <RoundButton dir="right" label="Next dish" onClick={() => step(1)} />
-              <span className="ml-3 text-[13px] text-muted tabular-nums">
-                {pad(index + 1)} <span className="text-ink/30">/</span> {pad(category.items.length)}
-              </span>
-            </div>
           </div>
-        </div>
-      </section>
-
-      {/* -------------------------------------------------- course intro */}
-      <section className="grid bg-espresso text-cream md:grid-cols-2">
-        <div className="relative flex flex-col justify-center px-5 py-14 md:px-10 md:py-20 lg:pl-[max(2.5rem,calc((100vw-1400px)/2+2.5rem))]">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={category.id}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.45, ease: EASE_OUT }}
-            >
-              <h2 className="font-display text-[clamp(2.3rem,4vw,3.4rem)] leading-[1.02] font-light">
-                {copy.title[0]}
-                <br />
-                {copy.title[1]}
-              </h2>
-              <p className="mt-6 max-w-sm text-[14.5px] leading-relaxed text-cream/75">{copy.body}</p>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-        <div className="relative aspect-[4/3] md:aspect-auto md:min-h-[420px]">
-          <AnimatePresence initial={false}>
-            <motion.div
-              key={copy.img}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8 }}
-              className="absolute inset-0"
-            >
-              <Image src={copy.img} alt="" aria-hidden fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------- the course */}
-      <section className="bg-cream">
-        <div className="mx-auto grid w-full max-w-[1400px] gap-10 px-5 py-16 md:grid-cols-[1.15fr_0.85fr] md:gap-14 md:px-10 lg:py-20">
-          <div>
-            <ul className="divide-y divide-line border-b border-line">
-              {listed.map((d) => {
-                const on = d.id === dish.id;
-                return (
-                  <li key={d.id}>
-                    <button
-                      type="button"
-                      onClick={() => setDishId(d.id)}
-                      aria-pressed={on}
-                      className="group flex w-full items-baseline justify-between gap-6 py-4 text-left"
-                    >
-                      <span className="min-w-0">
-                        <span
-                          className={`block text-[15px] leading-snug font-medium transition-colors ${
-                            on ? "text-ember" : "group-hover:text-ember"
-                          }`}
-                        >
-                          {d.name}
-                        </span>
-                        <span className="mt-1 block text-[12.5px] leading-snug text-muted">{d.desc}</span>
-                      </span>
-                      {rupees(d.price) && (
-                        <span className="shrink-0 text-[13.5px] tabular-nums text-ink/80">{rupees(d.price)}</span>
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            {category.items.length > LIST_PREVIEW && (
-              <button
-                type="button"
-                onClick={() => setShowAll((v) => !v)}
-                className="group mt-6 inline-flex items-center gap-2 text-[13px] text-ember hover:text-ink"
-              >
-                {showAll
-                  ? "Show fewer"
-                  : `Show all ${category.items.length} ${category.label.toLowerCase()}`}
-                <span className={`transition-transform ${showAll ? "-rotate-90" : "rotate-90"}`}>→</span>
-              </button>
-            )}
-          </div>
-
-          <figure className="md:sticky md:top-24 md:self-start">
-            <div className="relative aspect-square overflow-hidden rounded-sm bg-sand shadow-[0_24px_50px_-30px_rgba(28,20,15,0.6)]">
-              <AnimatePresence initial={false}>
-                <motion.div
-                  key={dish.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="absolute inset-0"
-                >
-                  <DishPhoto dish={dish} sizes="(max-width: 768px) 100vw, 36vw" />
-                </motion.div>
-              </AnimatePresence>
-            </div>
-            <figcaption className="mt-4 flex items-start justify-between gap-4">
-              <span>
-                <span className="block text-[14px] font-medium">{dish.name}</span>
-                <span className="mt-0.5 block text-[12px] text-muted">{dish.desc}</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => step(1)}
-                aria-label="Next dish"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ink/20 transition-colors hover:border-ink hover:bg-ink hover:text-cream"
-              >
-                <ArrowIcon />
-              </button>
-            </figcaption>
-          </figure>
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------ market */}
-      <section className="relative isolate overflow-hidden bg-espresso text-cream">
-        <Image
-          src="/img/milli/market.webp"
-          alt="Baskets of tomatoes, greens and gourds at the morning market"
-          fill
-          sizes="100vw"
-          className="-z-10 object-cover object-[70%_50%]"
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(20,14,10,0.94)_0%,rgba(20,14,10,0.7)_38%,rgba(20,14,10,0.1)_75%)] max-md:bg-[rgba(20,14,10,0.78)]"
-        />
-        <div className="mx-auto w-full max-w-[1400px] px-5 py-16 md:px-10 md:py-24">
-          <Reveal>
-            <h2 className="font-display text-[clamp(2.2rem,4vw,3.3rem)] leading-[1.02] font-light">
-              From the morning market
-              <br className="max-sm:hidden" /> to your plate.
-            </h2>
-            <p className="mt-5 max-w-sm text-[14.5px] leading-relaxed text-cream/75">
-              We work with local growers and the morning market. The menu follows the season, the
-              land, and the people who bring it to us.
-            </p>
-            <Link href="/#about" className="group mt-7 inline-flex items-center gap-2 text-[13px] text-ember">
-              Our story
-              <span className="transition-transform group-hover:translate-x-1">→</span>
-            </Link>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------- discover */}
-      <section className="bg-cream">
-        <div className="mx-auto w-full max-w-[1400px] px-5 py-16 md:px-10 lg:py-20">
-          <div className="flex items-end justify-between gap-6">
-            <div>
-              <h2 className="font-display text-[clamp(2.2rem,4vw,3.2rem)] leading-none font-light">
-                More to discover.
-              </h2>
-            </div>
-            <div className="flex gap-2.5 lg:hidden">
-              <RoundButton dir="left" label="Scroll back" onClick={() => discoverRef.current?.scrollBy({ left: -280, behavior: "smooth" })} />
-              <RoundButton dir="right" label="Scroll on" onClick={() => discoverRef.current?.scrollBy({ left: 280, behavior: "smooth" })} />
-            </div>
-          </div>
-
-          <div
-            ref={discoverRef}
-            className="no-scrollbar -mx-5 mt-9 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0"
-          >
-            {categories.map((c) => {
-              const cover = c.items.find((d) => d.img && !d.img.startsWith("/img/menu/")) ?? c.items[0]!;
-              return (
+        ) : (
+          visible.map((c) => {
+            const open = narrowed || !collapsed.has(c.id);
+            return (
+              <section key={c.id} id={`course-${c.id}`} className="scroll-mt-20">
+                <div className="-mx-4 mt-6 h-4 bg-[#f2f2f7] md:mx-0" aria-hidden />
                 <button
-                  key={c.id}
                   type="button"
-                  onClick={() => pickCategory(c.id, true)}
-                  className="group w-[70%] shrink-0 snap-start overflow-hidden rounded-md border border-line bg-[#fbf7f0] text-left shadow-[0_18px_40px_-32px_rgba(28,20,15,0.6)] sm:w-[44%] lg:w-auto"
+                  onClick={() => toggleCategory(c.id)}
+                  aria-expanded={open}
+                  className="flex w-full items-center justify-between py-6 text-left"
                 >
-                  <span className="relative block aspect-[4/3] overflow-hidden bg-sand">
-                    <span className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
-                      <DishPhoto dish={cover} sizes="(max-width: 1024px) 70vw, 24vw" />
-                    </span>
-                  </span>
-                  <span className="flex items-end justify-between gap-3 px-4 pt-4 pb-5">
-                    <span>
-                      <span className="block text-[15px] font-medium">{c.label}</span>
-                      <span className="mt-1 block text-[12px] leading-snug text-muted">{courseCopy(c).card}</span>
-                    </span>
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ink/20 transition-colors group-hover:border-ink group-hover:bg-ink group-hover:text-cream">
-                      <ArrowIcon />
-                    </span>
-                  </span>
+                  <h2 className="text-[18px] font-extrabold tracking-tight">
+                    {c.label} ({c.items.length})
+                  </h2>
+                  <Chevron open={open} />
                 </button>
-              );
-            })}
+                {open && (
+                  <div className="divide-y divide-ink/10">
+                    {c.items.map((d) => (
+                      <DishRow key={d.id} dish={d} />
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })
+        )}
+      </div>
+
+      {/* --------------------------------------------- browse menu button */}
+      <div
+        className={`pointer-events-none fixed inset-x-0 z-30 transition-[bottom] duration-300 ${
+          itemsInCart > 0 ? "bottom-[84px]" : "bottom-6"
+        }`}
+      >
+        <div className="mx-auto flex w-full max-w-[800px] justify-end px-4">
+          <div className="pointer-events-auto relative">
+            <AnimatePresence>
+              {browsing && (
+                <>
+                  <div className="fixed inset-0" onClick={() => setBrowsing(false)} aria-hidden />
+                  <motion.ul
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                    transition={{ duration: 0.18, ease: EASE_OUT }}
+                    className="absolute right-0 bottom-[calc(100%+12px)] max-h-[60vh] w-[280px] origin-bottom-right overflow-y-auto rounded-2xl bg-espresso py-3 text-white shadow-[0_12px_32px_rgba(0,0,0,0.3)]"
+                  >
+                    {categories.map((c) => (
+                      <li key={c.id}>
+                        <button
+                          type="button"
+                          onClick={() => jumpTo(c.id)}
+                          className="flex w-full items-center justify-between px-5 py-2.5 text-left text-[15px] font-semibold hover:bg-white/10"
+                        >
+                          {c.label}
+                          <span className="text-white/70 tabular-nums">{c.items.length}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </motion.ul>
+                </>
+              )}
+            </AnimatePresence>
+            <button
+              type="button"
+              onClick={() => setBrowsing((v) => !v)}
+              aria-expanded={browsing}
+              className="relative flex h-[68px] w-[68px] flex-col items-center justify-center gap-0.5 rounded-full bg-espresso text-[11px] font-bold tracking-wide text-white shadow-[0_6px_18px_rgba(0,0,0,0.3)]"
+            >
+              {browsing ? (
+                <span className="text-lg leading-none">✕</span>
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  MENU
+                </>
+              )}
+            </button>
           </div>
         </div>
-      </section>
-    </>
+      </div>
+
+      {/* ---------------------------------------------------- cart bar */}
+      <AnimatePresence>
+        {itemsInCart > 0 && (
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ duration: 0.25, ease: EASE_OUT }}
+            className="fixed inset-x-0 bottom-0 z-30 px-4 pb-4"
+          >
+            <button
+              type="button"
+              onClick={openCart}
+              className="mx-auto flex h-[52px] w-full max-w-[768px] items-center justify-between rounded-xl bg-basil px-5 text-[15px] font-bold text-white shadow-[0_8px_24px_rgba(26,122,86,0.35)]"
+            >
+              <span className="tabular-nums">
+                {itemsInCart} item{itemsInCart === 1 ? "" : "s"} added
+                {cart?.subtotal != null && cart.subtotal > 0 && (
+                  <span className="font-semibold text-white/80"> · {rupees(cart.subtotal)}</span>
+                )}
+              </span>
+              <span className="inline-flex items-center gap-2 uppercase">
+                View cart
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M6 7h12l-1 13H7L6 7Zm3 0a3 3 0 0 1 6 0"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

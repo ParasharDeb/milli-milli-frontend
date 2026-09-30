@@ -82,6 +82,7 @@ function toDish(item: MenuItem): Dish {
     price: item.price ?? undefined,
     tags: toTags(item),
     spice: toPips(item.spice, item.spiceConfidence),
+    bestseller: item.tags.some((t) => /bestseller|chef/i.test(t)),
   };
 }
 

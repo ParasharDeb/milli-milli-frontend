@@ -9,6 +9,8 @@ export type Dish = {
   tags: string[];
   /** 0 = none, 3 = hot. Drawn as filled chilli pips. */
   spice: 0 | 1 | 2 | 3;
+  /** Flagged by the POS as a bestseller or chef's special. */
+  bestseller?: boolean;
 };
 
 export type Category = {
