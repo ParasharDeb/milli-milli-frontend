@@ -387,6 +387,47 @@ function MenuCards({ onPick, disabled }: { onPick: (text: string) => void; disab
   );
 }
 
+/**
+ * The replies a guest can tap, as cards in the thread -- not pills stacked on
+ * the input, where they read as part of the composer. Same card as the menu
+ * picker, so every question the kitchen asks looks like one.
+ */
+function ReplyCards({
+  chips,
+  onPick,
+  disabled,
+}: {
+  chips: string[];
+  onPick: (text: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <motion.ul variants={reveal} className="mt-4 grid gap-2 border-t border-line pt-3 sm:grid-cols-2">
+      {chips.map((chip) => {
+        const decline = /^no\b/i.test(chip);
+        return (
+          <motion.li key={chip} variants={deal}>
+            <motion.button
+              type="button"
+              onClick={() => onPick(chip)}
+              disabled={disabled}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              className="group flex w-full items-center gap-3 rounded-lg border border-line bg-cream px-3.5 py-2.5 text-left transition-colors hover:border-ember/50 disabled:cursor-default disabled:opacity-60"
+            >
+              <span className={`h-2 w-2 shrink-0 rounded-full ${decline ? "bg-ink/25" : "bg-ember"}`} />
+              <span className={`flex-1 text-[13px] leading-snug ${decline ? "text-ink/70" : "font-medium"}`}>
+                {chip}
+              </span>
+              <span className="text-muted transition-transform group-hover:translate-x-1 group-hover:text-ember">→</span>
+            </motion.button>
+          </motion.li>
+        );
+      })}
+    </motion.ul>
+  );
+}
+
 const THINKING = [
   "Reading tonight's menu…",
   "Asking the kitchen…",
@@ -817,6 +858,10 @@ export function ChatRoom() {
                                 tonight&apos;s live data.
                               </motion.p>
                             )}
+
+                            {chips && chips.length > 0 && (
+                              <ReplyCards chips={chips} onPick={(t) => void send(t)} disabled={thinking} />
+                            )}
                           </motion.div>
 
                           {m.link && (
@@ -828,29 +873,6 @@ export function ChatRoom() {
                                 {m.link.label}
                                 <span className="transition-transform group-hover:translate-x-1">→</span>
                               </Link>
-                            </motion.div>
-                          )}
-
-                          {chips && chips.length > 0 && (
-                            <motion.div
-                              variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05, delayChildren: 0.2 } } }}
-                              className="mt-3 flex flex-wrap gap-2"
-                            >
-                              {chips.map((chip) => (
-                                <motion.button
-                                  key={chip}
-                                  type="button"
-                                  onClick={() => void send(chip)}
-                                  variants={{
-                                    hidden: { opacity: 0, y: 8, scale: 0.94 },
-                                    show: { opacity: 1, y: 0, scale: 1, transition: SPRING },
-                                  }}
-                                  whileTap={{ scale: 0.95 }}
-                                  className="rounded-full border border-ink/20 bg-[#fbf8f3] px-4 py-2 text-[12.5px] text-ink/85 transition-colors hover:border-ember hover:text-ember"
-                                >
-                                  {chip}
-                                </motion.button>
-                              ))}
                             </motion.div>
                           )}
                         </div>

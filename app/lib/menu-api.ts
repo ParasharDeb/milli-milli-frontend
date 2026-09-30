@@ -119,8 +119,8 @@ export type CartView = {
   complete: boolean;
 };
 
-/** The assistant's single "bread or rice with that?" of the visit. */
-export type FollowUp = { question: string; options: MenuItem[]; chips: string[] };
+/** The assistant's "bread or rice with that?" or "something to drink?" -- each once a visit. */
+export type FollowUp = { kind?: "side" | "drink"; question: string; options: MenuItem[]; chips: string[] };
 
 export type ChatResponse =
   | {
