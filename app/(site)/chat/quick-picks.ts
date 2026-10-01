@@ -66,6 +66,14 @@ const SHEESHA_MENU: MenuItem[] = [
   sheesha("Pan masala", "Heady, spiced and nostalgic — ask for it strong."),
 ];
 
+const SHEESHA_RE = /\b(sh?ee?sh?as?|shishas?|hookahs?|hukkahs?|huqqahs?|lounge)\b/;
+
+/** Words that say nothing about flavour, so they never count as a match. */
+const SHEESHA_NOISE = new Set([
+  "sheesha", "shisha", "hookah", "hukkah", "huqqa", "huqqah", "lounge", "flavour", "flavor",
+  "suggest", "recommend", "something", "which", "what", "with", "good", "best", "some", "please",
+]);
+
 function pick<T>(items: T[], n: number): T[] {
   const copy = [...items];
   for (let i = copy.length - 1; i > 0; i--) {
@@ -73,6 +81,19 @@ function pick<T>(items: T[], n: number): T[] {
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy.slice(0, n);
+}
+
+/** Flavours the guest named ("something minty") first, the rest at random. */
+function sheeshaPicks(text: string, n: number): MenuItem[] {
+  const words = text
+    .split(/[^a-z]+/)
+    .map((w) => w.replace(/(y|s)$/, ""))
+    .filter((w) => w.length >= 4 && !SHEESHA_NOISE.has(w));
+  const matches = (item: MenuItem) =>
+    words.some((w) => `${item.name} ${item.desc}`.toLowerCase().includes(w));
+
+  const named = pick(SHEESHA_MENU.filter(matches), n);
+  return [...named, ...pick(SHEESHA_MENU.filter((i) => !named.includes(i)), n - named.length)];
 }
 
 // One fetch per visit; the picks are shuffled fresh each time.
@@ -95,7 +116,7 @@ function loadDrinks() {
   return drinks;
 }
 
-/** Null when the text is not one of the start-menu buttons. */
+/** Null when the text is not one of the start-menu buttons, or a sheesha request. */
 export async function quickPick(input: string): Promise<QuickPick | null> {
   const text = input.trim().toLowerCase();
 
@@ -132,10 +153,12 @@ export async function quickPick(input: string): Promise<QuickPick | null> {
     };
   }
 
-  if (text === SHEESHA.toLowerCase() || text === "shisha" || text === "hookah") {
+  // Any mention, not just the button: the backend menu has no lounge, so a
+  // typed "suggest a sheesha" sent there comes back empty or as chicken.
+  if (SHEESHA_RE.test(text)) {
     return {
       text: "Three from the lounge — order these at the table:",
-      dishes: pick(SHEESHA_MENU, 3),
+      dishes: sheeshaPicks(text, 3),
       browseOnly: true,
       menuCards: true,
     };
