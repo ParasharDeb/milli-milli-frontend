@@ -20,6 +20,8 @@
   --color-terracotta: #c2603c;
   --color-amber: #e9a319;
   --color-gold: #c9a227;
+  /* the menu's buttons: a darker, browner ember */
+  --color-rust: #b0451f;
 
   --font-sans: var(--font-inter);
   --font-display: var(--font-fraunces);
@@ -120,5 +122,31 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .shimmer {
     animation: none;
+  }
+}
+
+/* Two range inputs stacked on one track: only the thumbs take the pointer. */
+@utility range-thumb {
+  pointer-events: none;
+  appearance: none;
+  background: transparent;
+  &::-webkit-slider-thumb {
+    pointer-events: auto;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--color-cream);
+    border: 2px solid var(--color-rust);
+    cursor: pointer;
+  }
+  &::-moz-range-thumb {
+    pointer-events: auto;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--color-cream);
+    border: 2px solid var(--color-rust);
+    cursor: pointer;
   }
 }

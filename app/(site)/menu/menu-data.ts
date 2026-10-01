@@ -11,6 +11,8 @@ export type Dish = {
   spice: 0 | 1 | 2 | 3;
   /** Flagged by the POS as a bestseller or chef's special. */
   bestseller?: boolean;
+  /** The database diet ("Vegetarian", "Jain", "OnlyFish"...); absent on the bundled menu. */
+  diet?: string;
 };
 
 export type Category = {

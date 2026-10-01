@@ -2,10 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCart } from "@/app/lib/cart-context";
 import { useCartDrawer } from "@/app/components/cart-drawer";
+import { dishImage } from "@/app/lib/dish-images";
+import type { MenuItem } from "@/app/lib/menu-api";
+import { imageFor } from "./menu-adapter";
 import { CATEGORIES, type Category, type Dish } from "./menu-data";
 import { MenuWelcome } from "./menu-welcome";
 
@@ -17,12 +20,18 @@ const EASE_OUT = [0.16, 1, 0.3, 1] as const;
  */
 const ORDERABLE = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
 
-type Filter = "veg" | "nonveg" | "bestseller";
+/** Where the floating nav ends once it has lifted; the tab bar sticks below it. */
+const NAV_OFFSET = 64;
 
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: "veg", label: "Veg" },
-  { id: "nonveg", label: "Non-veg" },
-  { id: "bestseller", label: "Bestseller" },
+type Diet = "veg" | "jain" | "egg" | "seafood";
+
+const isVeg = (d: Dish) => d.tags.includes("Vegetarian");
+
+const DIETS: { id: Diet; label: string; test: (d: Dish) => boolean }[] = [
+  { id: "veg", label: "Vegetarian", test: isVeg },
+  { id: "jain", label: "Jain Friendly", test: (d) => d.diet === "Jain" },
+  { id: "egg", label: "Eggetarian", test: (d) => d.diet === "Eggetarian" },
+  { id: "seafood", label: "Seafood", test: (d) => d.diet === "OnlyFish" || d.tags.includes("Seafood") },
 ];
 
 function rupees(n?: number | null) {
@@ -33,19 +42,46 @@ function today() {
   return new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long" });
 }
 
-const isVeg = (d: Dish) => d.tags.includes("Vegetarian");
+/* ------------------------------------------------------------------ icons */
+
+function Icon({ d, size = 16, className = "" }: { d: string; size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden className={className}>
+      <path d={d} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+const ARROW = "M5 12h14m-6-6 6 6-6 6";
+const PLUS = "M12 5v14M5 12h14";
+const MINUS = "M5 12h14";
+const TRASH = "M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3";
+const CLOCK = "M12 7v5l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z";
+const LEAF = "M5 19C5 10 10 5 20 4c-1 10-6 15-15 15Zm0 0 7-7";
+const TAG = "M4 12V4h8l8 8-8 8-8-8Zm4-4h.01";
+
+/* ----------------------------------------------------------------- photos */
 
 /**
  * The bundled fallback photographs are cut-outs on white, so they sit on a
- * plain ground rather than being cropped to fill.
+ * plain ground rather than being cropped to fill. Dishes with no photograph
+ * get their initial on a plate of colour.
  */
-function DishPhoto({ dish, sizes }: { dish: Dish; sizes: string }) {
-  if (!dish.img) return null;
-  const cutout = dish.img.startsWith("/img/menu/");
+function DishPhoto({ name, img, sizes }: { name: string; img?: string; sizes: string }) {
+  if (!img) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-sand to-[#e2cfb6]">
+        <span className="font-display text-[28px] text-ink/25">
+          {name.charAt(0)}
+        </span>
+      </div>
+    );
+  }
+  const cutout = img.startsWith("/img/menu/");
   return (
     <Image
-      src={dish.img}
-      alt={dish.name}
+      src={img}
+      alt={name}
       fill
       sizes={sizes}
       className={cutout ? "bg-[#f4efe7] object-contain p-[8%]" : "object-cover"}
@@ -53,93 +89,58 @@ function DishPhoto({ dish, sizes }: { dish: Dish; sizes: string }) {
   );
 }
 
-/** The square-and-dot food mark: green circle for veg, red triangle otherwise. */
-function DietMark({ veg }: { veg: boolean }) {
+/** A cart line carries the database row, so its photo is looked up the way the adapter does. */
+function lineImage(item: MenuItem) {
+  return item.imageUrl ?? dishImage(item.name) ?? imageFor(item.name);
+}
+
+/* --------------------------------------------------------------- controls */
+
+function Stepper({
+  qty,
+  busy,
+  onDec,
+  onInc,
+  label,
+  size = "sm",
+}: {
+  qty: number;
+  busy: boolean;
+  onDec: () => void;
+  onInc: () => void;
+  label: string;
+  size?: "sm" | "md";
+}) {
+  const btn = size === "md" ? "h-8 w-8" : "h-6 w-6";
   return (
-    <span
-      role="img"
-      aria-label={veg ? "Vegetarian" : "Non-vegetarian"}
-      className={`inline-flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border-[1.5px] ${
-        veg ? "border-basil" : "border-[#b33a2b]"
-      }`}
-    >
-      {veg ? (
-        <span className="h-[7px] w-[7px] rounded-full bg-basil" />
-      ) : (
-        <span className="h-0 w-0 border-x-[4px] border-b-[7px] border-x-transparent border-b-[#b33a2b]" />
-      )}
-    </span>
+    <div className="inline-flex items-center gap-1 rounded-md border border-ink/15 bg-cream text-ink/70">
+      <button type="button" disabled={busy} onClick={onDec} aria-label={`Remove one ${label}`} className={`${btn} flex items-center justify-center hover:text-ink disabled:opacity-40`}>
+        <Icon d={MINUS} size={12} />
+      </button>
+      <span className="min-w-4 text-center text-[12px] tabular-nums">{qty}</span>
+      <button type="button" disabled={busy} onClick={onInc} aria-label={`Add one more ${label}`} className={`${btn} flex items-center justify-center hover:text-ink disabled:opacity-40`}>
+        <Icon d={PLUS} size={12} />
+      </button>
+    </div>
   );
 }
 
-function Chevron({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-      className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-    >
-      <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ArrowButton({ dir, onClick }: { dir: "left" | "right"; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={dir === "left" ? "Scroll back" : "Scroll on"}
-      className="flex h-8 w-8 items-center justify-center rounded-full bg-ink/[0.07] text-ink/70 transition-colors hover:bg-ink/[0.12] hover:text-ink"
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path
-          d={dir === "left" ? "M19 12H5m6-6-6 6 6 6" : "M5 12h14m-6-6 6 6-6 6"}
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </button>
-  );
-}
-
-/** ADD, which becomes a − n + stepper once the dish is in the order. */
-function AddControl({ dish, className = "" }: { dish: Dish; className?: string }) {
+/** The rust + square, which becomes a stepper once the dish is in the order. */
+function AddControl({ dish }: { dish: Dish }) {
   const { cart, busy, add, setQty, remove } = useCart();
   const qty = cart?.lines.find((l) => l.item.id === dish.id)?.qty ?? 0;
   const orderable = ORDERABLE.test(dish.id);
 
-  const base =
-    "flex h-10 w-[118px] items-center justify-center rounded-lg border border-ink/10 bg-white text-[15px] font-extrabold text-basil shadow-[0_3px_8px_rgba(28,20,15,0.08)]";
-
   if (qty > 0) {
     return (
-      <div className={`${base} justify-between px-1 ${className}`}>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => (qty === 1 ? remove(dish.id) : setQty(dish.id, qty - 1))}
-          aria-label={`Remove one ${dish.name}`}
-          className="flex h-full w-9 items-center justify-center text-lg disabled:opacity-50"
-        >
-          −
-        </button>
-        <span className="tabular-nums">{qty}</span>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => add(dish.id)}
-          aria-label={`Add one more ${dish.name}`}
-          className="flex h-full w-9 items-center justify-center text-lg disabled:opacity-50"
-        >
-          +
-        </button>
-      </div>
+      <Stepper
+        qty={qty}
+        busy={busy}
+        label={dish.name}
+        size="md"
+        onDec={() => (qty === 1 ? remove(dish.id) : setQty(dish.id, qty - 1))}
+        onInc={() => add(dish.id)}
+      />
     );
   }
 
@@ -148,173 +149,325 @@ function AddControl({ dish, className = "" }: { dish: Dish; className?: string }
       type="button"
       disabled={busy || !orderable}
       onClick={() => add(dish.id)}
+      aria-label={`Add ${dish.name}`}
       title={orderable ? undefined : "Ordering opens when the kitchen is online"}
-      className={`${base} uppercase transition-colors hover:bg-[#f2f2f2] disabled:cursor-not-allowed disabled:text-ink/30 ${className}`}
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-rust text-cream shadow-[0_3px_8px_rgba(176,69,31,0.3)] transition-colors hover:bg-[#953a19] disabled:cursor-not-allowed disabled:bg-ink/20 disabled:shadow-none"
     >
-      Add
+      <Icon d={PLUS} size={16} />
     </button>
   );
 }
 
-function DishRow({ dish }: { dish: Dish }) {
-  const [expanded, setExpanded] = useState(false);
-  const [long, setLong] = useState(false);
-  const descRef = useRef<HTMLParagraphElement>(null);
+/* ------------------------------------------------------------------ cards */
 
-  // "more" only when the two-line clamp is actually hiding something.
-  useLayoutEffect(() => {
-    const el = descRef.current;
-    if (el && !expanded) setLong(el.scrollHeight > el.clientHeight + 1);
-  }, [dish.desc, expanded]);
-
+/** A row with the photo on the left on phones, a photo-topped card from `sm` up. */
+function DishCard({ dish }: { dish: Dish }) {
   return (
-    <article className="flex gap-4 py-7 md:gap-10">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <DietMark veg={isVeg(dish)} />
-          {dish.bestseller && (
-            <span className="inline-flex items-center gap-1 text-[13px] font-bold text-ember">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                <path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z" />
-              </svg>
-              Bestseller
-            </span>
+    <article className="flex gap-4 border-b border-ink/10 py-3 sm:flex-col sm:gap-0 sm:overflow-hidden sm:rounded-lg sm:border sm:border-ink/[0.06] sm:bg-[#fbf7f1] sm:py-0 sm:shadow-[0_6px_18px_rgba(28,20,15,0.06)]">
+      <div className="relative h-[84px] w-[96px] shrink-0 overflow-hidden rounded-lg bg-sand sm:aspect-[4/3] sm:h-auto sm:w-full sm:rounded-none">
+        <DishPhoto name={dish.name} img={dish.img} sizes="(min-width: 640px) 320px, 96px" />
+      </div>
+      <div className="flex min-w-0 flex-1 items-center gap-3 sm:items-end sm:px-3 sm:pt-3 sm:pb-3.5">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-display text-[15px] leading-snug text-ink sm:text-[15.5px]">{dish.name}</h3>
+          {/* price sits under the name on cards, under the description in rows */}
+          <p className="mt-1 hidden text-[13px] text-ink/60 tabular-nums sm:block">{rupees(dish.price)}</p>
+          <p className="mt-0.5 line-clamp-2 text-[12px] leading-[1.45] text-ink/50">{dish.desc}</p>
+          {rupees(dish.price) && (
+            <p className="mt-1.5 text-[13px] text-rust tabular-nums sm:hidden">{rupees(dish.price)}</p>
           )}
         </div>
-        <h3 className="mt-1.5 text-[17px] leading-snug font-bold text-ink/85">{dish.name}</h3>
-        {rupees(dish.price) && (
-          <p className="mt-1 text-[15px] font-semibold text-ink/85 tabular-nums">{rupees(dish.price)}</p>
-        )}
-        {dish.spice > 0 && (
-          <p className="mt-2 flex items-center gap-1.5 text-[12.5px] font-semibold text-ember">
-            {"🌶".repeat(dish.spice)}
-            <span className="font-medium text-ink/50">
-              {dish.spice === 3 ? "Hot" : dish.spice === 2 ? "Medium" : "Mild"}
-            </span>
-          </p>
-        )}
-        <p ref={descRef} className={`mt-2.5 text-[15px] leading-[1.45] text-ink/55 ${expanded ? "" : "line-clamp-2"}`}>
-          {dish.desc}
-        </p>
-        {long && (
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="mt-0.5 text-[14px] font-bold text-ink/60 hover:text-ink"
-          >
-            {expanded ? "less" : "more"}
-          </button>
-        )}
-      </div>
-
-      <div className="relative shrink-0 self-start">
-        {dish.img ? (
-          <>
-            <div className="relative h-[130px] w-[140px] overflow-hidden rounded-xl bg-sand md:h-[144px] md:w-[156px]">
-              <DishPhoto dish={dish} sizes="156px" />
-            </div>
-            <AddControl dish={dish} className="absolute -bottom-4 left-1/2 -translate-x-1/2" />
-          </>
-        ) : (
-          <div className="flex w-[140px] justify-center pt-8 md:w-[156px]">
-            <AddControl dish={dish} />
-          </div>
-        )}
+        <AddControl dish={dish} />
       </div>
     </article>
   );
 }
 
-function TopPicks({ dishes }: { dishes: Dish[] }) {
-  const rail = useRef<HTMLDivElement>(null);
-  if (dishes.length === 0) return null;
-  const scroll = (dx: number) => rail.current?.scrollBy({ left: dx, behavior: "smooth" });
+function Section({
+  id,
+  title,
+  note,
+  dishes,
+  preview,
+  showAll,
+}: {
+  id: string;
+  title: string;
+  note: string;
+  dishes: Dish[];
+  preview: number;
+  showAll: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const open = showAll || expanded;
+  const shown = open ? dishes : dishes.slice(0, preview);
 
   return (
-    <section className="mt-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-[20px] font-extrabold tracking-tight">Top picks</h2>
-        <div className="flex gap-2">
-          <ArrowButton dir="left" onClick={() => scroll(-300)} />
-          <ArrowButton dir="right" onClick={() => scroll(300)} />
+    <section id={`course-${id}`} className="scroll-mt-[136px] pt-8 first:pt-6">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h2 className="font-display text-[22px] leading-tight text-ink md:text-[30px]">{title}</h2>
+          <p className="mt-1 hidden text-[13px] text-ink/55 md:block">{note}</p>
         </div>
-      </div>
-      <div ref={rail} className="no-scrollbar -mx-4 mt-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
-        {dishes.map((d) => (
-          <article
-            key={d.id}
-            className="relative flex h-[280px] w-[250px] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-2xl bg-espresso p-4 text-white"
+        {!showAll && dishes.length > preview && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="inline-flex shrink-0 items-center gap-1.5 pb-1 text-[12.5px] text-rust hover:underline"
           >
-            <DishPhoto dish={d} sizes="250px" />
-            <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent via-40% to-black/70" />
-            <div className="relative flex items-start gap-2">
-              <span className="mt-0.5 rounded-[3px] bg-white p-[1px]">
-                <DietMark veg={isVeg(d)} />
-              </span>
-              <h3 className="line-clamp-2 text-[16px] leading-snug font-bold">{d.name}</h3>
-            </div>
-            <div className="relative flex items-center justify-between gap-3">
-              <span className="text-[16px] font-bold tabular-nums">{rupees(d.price)}</span>
-              <AddControl dish={d} className="!w-[100px]" />
-            </div>
-          </article>
+            {expanded ? "Show less" : `View all ${dishes.length}`}
+            <Icon d={ARROW} size={13} className={`transition-transform ${expanded ? "-rotate-90" : ""}`} />
+          </button>
+        )}
+      </div>
+      <div className="mt-3 grid gap-x-3 sm:mt-4 sm:grid-cols-2 sm:gap-y-3 lg:grid-cols-3">
+        {shown.map((d) => (
+          <DishCard key={d.id} dish={d} />
         ))}
       </div>
     </section>
   );
 }
 
+/* ----------------------------------------------------------------- order */
+
+function OrderPanel() {
+  const { cart, busy, error, setQty, remove, clear } = useCart();
+  const lines = cart?.lines ?? [];
+
+  return (
+    <div className="rounded-xl">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-[17px] text-ink">
+          Your Order <span className="text-ink/60">({cart?.totalItems ?? 0})</span>
+        </h2>
+        {lines.length > 0 && (
+          <button type="button" disabled={busy} onClick={clear} className="text-[12.5px] text-rust hover:underline disabled:opacity-50">
+            Clear all
+          </button>
+        )}
+      </div>
+
+      {error && <p className="mt-3 rounded-md bg-ember/10 px-3 py-2 text-[12px] text-ember">{error}</p>}
+
+      {lines.length === 0 ? (
+        <div className="mt-5 rounded-lg border border-dashed border-ink/15 px-4 py-8 text-center">
+          <p className="font-display text-[15px] text-ink/70">Nothing here yet</p>
+          <p className="mt-1 text-[12px] text-ink/45">Tap + on any dish to start your order.</p>
+        </div>
+      ) : (
+        <ul className="mt-4 max-h-[42vh] space-y-4 overflow-y-auto pr-1">
+          {lines.map(({ item, qty, lineTotal }) => (
+            <li key={item.id} className="flex gap-3">
+              <div className="relative h-[64px] w-[64px] shrink-0 overflow-hidden rounded-md bg-sand">
+                <DishPhoto name={item.name} img={lineImage(item)} sizes="64px" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] text-ink">{item.name}</p>
+                <p className="mt-0.5 text-[13px] text-ink/70 tabular-nums">{rupees(lineTotal) ?? "—"}</p>
+                <div className="mt-1.5">
+                  <Stepper
+                    qty={qty}
+                    busy={busy}
+                    label={item.name}
+                    onDec={() => (qty === 1 ? remove(item.id) : setQty(item.id, qty - 1))}
+                    onInc={() => setQty(item.id, qty + 1)}
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => remove(item.id)}
+                aria-label={`Remove ${item.name}`}
+                className="self-center p-1 text-ink/35 transition-colors hover:text-rust disabled:opacity-40"
+              >
+                <Icon d={TRASH} size={15} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {lines.length > 0 && (
+        <>
+          <dl className="mt-5 space-y-2.5 border-t border-ink/10 pt-4 text-[12.5px] text-ink/65">
+            <div className="flex justify-between">
+              <dt>Subtotal</dt>
+              <dd className="tabular-nums">{rupees(cart?.subtotal) ?? "—"}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt>Taxes &amp; charges</dt>
+              <dd>At the table</dd>
+            </div>
+            <div className="flex items-baseline justify-between pt-1.5 text-ink">
+              <dt className="font-display text-[16px]">Total</dt>
+              <dd className="font-display text-[17px] tabular-nums">{rupees(cart?.subtotal) ?? "—"}</dd>
+            </div>
+          </dl>
+          {cart && !cart.complete && (
+            <p className="mt-1.5 text-[11px] text-ink/45">Some dishes have no price recorded, so this total is incomplete.</p>
+          )}
+
+          <Link
+            href="/reserve-table"
+            className="mt-5 flex h-11 items-center justify-center gap-2 rounded-md bg-rust text-[13px] text-cream shadow-[0_6px_16px_rgba(176,69,31,0.28)] transition-colors hover:bg-[#953a19]"
+          >
+            Book a table with this order <Icon d={ARROW} size={14} />
+          </Link>
+
+          <p className="mt-4 flex items-start gap-3 text-[11.5px] text-ink/55">
+            <Icon d={CLOCK} size={20} className="shrink-0 text-ink/60" />
+            <span>
+              Cooked to order
+              <span className="block text-[12.5px] text-ink/75">Sent as each dish is ready</span>
+            </span>
+          </p>
+        </>
+      )}
+
+      <Link
+        href="/chat"
+        className="mt-5 flex items-center gap-3 rounded-lg border border-ink/10 bg-[#f3ece1] px-4 py-3.5 transition-colors hover:border-ink/20"
+      >
+        <Icon d={LEAF} size={20} className="shrink-0 text-ink/55" />
+        <span className="flex-1">
+          <span className="block text-[13px] text-ink">Ask Milli</span>
+          <span className="block text-[11px] text-ink/50">Allergies, pairings, how much to order</span>
+        </span>
+        <Icon d="m9 6 6 6-6 6" size={14} className="text-ink/45" />
+      </Link>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- filters */
+
+function PriceRange({
+  max,
+  value,
+  onChange,
+}: {
+  max: number;
+  value: [number, number];
+  onChange: (v: [number, number]) => void;
+}) {
+  const [lo, hi] = value;
+  const pct = (n: number) => (n / max) * 100;
+  return (
+    <div>
+      <div className="relative h-4">
+        <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-ink/10" />
+        <div
+          className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-rust"
+          style={{ left: `${pct(lo)}%`, right: `${100 - pct(hi)}%` }}
+        />
+        <input
+          type="range"
+          min={0}
+          max={max}
+          step={50}
+          value={lo}
+          aria-label="Lowest price"
+          onChange={(e) => onChange([Math.min(Number(e.target.value), hi - 50), hi])}
+          className="range-thumb absolute inset-0 w-full"
+        />
+        <input
+          type="range"
+          min={0}
+          max={max}
+          step={50}
+          value={hi}
+          aria-label="Highest price"
+          onChange={(e) => onChange([lo, Math.max(Number(e.target.value), lo + 50)])}
+          className="range-thumb absolute inset-0 w-full"
+        />
+      </div>
+      <div className="mt-2.5 flex justify-between text-[11.5px] text-ink/60 tabular-nums">
+        <span>{rupees(lo)}</span>
+        <span>
+          {rupees(hi)}
+          {hi === max ? "+" : ""}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------- page */
+
 export function MenuExperience({ categories = CATEGORIES }: { categories?: Category[] }) {
   const { cart } = useCart();
   const { open: openCart } = useCartDrawer();
-  const [query, setQuery] = useState("");
-  const [filters, setFilters] = useState<Set<Filter>>(new Set());
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [browsing, setBrowsing] = useState(false);
+  const [diets, setDiets] = useState<Set<Diet>>(new Set());
+  const all = useMemo(() => categories.flatMap((c) => c.items), [categories]);
 
-  const totalDishes = categories.reduce((n, c) => n + c.items.length, 0);
-  const vegCount = categories.reduce((n, c) => n + c.items.filter(isVeg).length, 0);
+  // The slider tops out at the dearest dish, rounded up to the next hundred.
+  const priceMax = useMemo(() => {
+    const top = Math.max(0, ...all.map((d) => d.price ?? 0));
+    return Math.max(100, Math.ceil(top / 100) * 100);
+  }, [all]);
+  const [price, setPrice] = useState<[number, number]>([0, priceMax]);
+  const cheapest = Math.min(...all.map((d) => d.price ?? Infinity));
+  const vegCount = all.filter(isVeg).length;
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const keep = (d: Dish) =>
-      (!q || d.name.toLowerCase().includes(q) || d.desc.toLowerCase().includes(q)) &&
-      (!filters.has("veg") || isVeg(d)) &&
-      (!filters.has("nonveg") || !isVeg(d)) &&
-      (!filters.has("bestseller") || d.bestseller);
-    return categories
-      .map((c) => ({ ...c, items: c.items.filter(keep) }))
-      .filter((c) => c.items.length > 0);
-  }, [categories, query, filters]);
+  const availableDiets = DIETS.filter((f) => all.some(f.test));
+  const priceNarrowed = price[0] > 0 || price[1] < priceMax;
+  const narrowed = diets.size > 0 || priceNarrowed;
 
-  const narrowed = query.trim() !== "" || filters.size > 0;
+  const keep = useMemo(() => {
+    const tests = DIETS.filter((f) => diets.has(f.id)).map((f) => f.test);
+    return (d: Dish) =>
+      (tests.length === 0 || tests.some((t) => t(d))) &&
+      // An unpriced dish is never hidden by the slider: there is nothing to compare.
+      (d.price == null || (d.price >= price[0] && (price[1] >= priceMax || d.price <= price[1])));
+  }, [diets, price, priceMax]);
 
-  // Photographed dishes, a few from each course, for the rail up top. Real
-  // photographs first; the cut-out library only when nothing else exists.
-  const picks = useMemo(() => {
+  const visible = useMemo(
+    () => categories.map((c) => ({ ...c, items: c.items.filter(keep) })).filter((c) => c.items.length > 0),
+    [categories, keep],
+  );
+
+  // Bestsellers lead; otherwise photographed dishes, a couple from each course.
+  // Real photographs first, the cut-out library only when nothing else exists.
+  const recommended = useMemo(() => {
+    const flagged = all.filter((d) => d.bestseller);
+    if (flagged.length >= 3) return flagged.slice(0, 9);
     const from = (ok: (d: Dish) => boolean) =>
-      categories.flatMap((c) => c.items.filter(ok).slice(0, 3)).slice(0, 10);
+      categories.flatMap((c) => c.items.filter(ok).slice(0, 2)).slice(0, 9);
     const shot = from((d) => Boolean(d.img && !d.img.startsWith("/img/menu/")));
     return shot.length >= 3 ? shot : from((d) => Boolean(d.img));
-  }, [categories]);
-  const hasBestsellers = categories.some((c) => c.items.some((d) => d.bestseller));
+  }, [all, categories]);
 
-  function toggleFilter(f: Filter) {
-    setFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(f)) next.delete(f);
-      else {
-        next.add(f);
-        // Veg and non-veg exclude each other.
-        if (f === "veg") next.delete("nonveg");
-        if (f === "nonveg") next.delete("veg");
+  const tabs = [
+    ...(narrowed ? [] : [{ id: "recommended", label: "Recommended" }]),
+    ...visible.map((c) => ({ id: c.id, label: c.label })),
+  ];
+  const tabKey = tabs.map((t) => t.id).join();
+  const [active, setActive] = useState(tabs[0]?.id);
+
+  // The tab for whichever course is under the tab bar.
+  useEffect(() => {
+    const ids = tabKey.split(",");
+    function onScroll() {
+      let current = ids[0];
+      for (const id of ids) {
+        const el = document.getElementById(`course-${id}`);
+        if (el && el.getBoundingClientRect().top < 160) current = id;
       }
-      return next;
-    });
+      setActive(current);
+    }
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [tabKey]);
+
+  function jumpTo(id: string) {
+    document.getElementById(`course-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function toggleCategory(id: string) {
-    setCollapsed((prev) => {
+  function toggleDiet(id: Diet) {
+    setDiets((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -322,222 +475,205 @@ export function MenuExperience({ categories = CATEGORIES }: { categories?: Categ
     });
   }
 
-  function jumpTo(id: string) {
-    setBrowsing(false);
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    document.getElementById(`course-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  function reset() {
+    setDiets(new Set());
+    setPrice([0, priceMax]);
   }
 
   const itemsInCart = cart?.totalItems ?? 0;
 
   return (
-    <div className="bg-white">
-      {/* the nav floats in light type until scrolled, so it needs a dark ground */}
-      <div aria-hidden className="h-[68px] bg-espresso md:h-[88px]" />
+    <div className="bg-cream">
+      {/* ------------------------------------------------------------ hero */}
+      <header className="relative overflow-hidden bg-espresso text-cream">
+        <Image src="/img/table-night.webp" alt="" fill priority sizes="100vw" className="object-cover object-center" />
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/10" />
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/40" />
+        <div className="relative mx-auto w-full max-w-[1400px] px-5 pt-[104px] pb-10 md:px-10 md:pt-[136px] md:pb-12">
+          <h1 className="font-display text-[44px] leading-none tracking-tight md:text-[64px]">Milli Milli</h1>
+          <p className="mt-4 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-cream/90 md:text-[14px]">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="text-amber">★</span> Tonight&apos;s market menu
+            </span>
+            <span className="text-cream/50">•</span>
+            <span suppressHydrationWarning>{today()}</span>
+            <span className="text-cream/50">•</span>
+            <span>{all.length} dishes</span>
+          </p>
+          <p className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px] text-cream/90 md:text-[14px]">
+            <span className="inline-flex items-center gap-1.5">
+              <Icon d={CLOCK} size={15} /> Cooked to order
+            </span>
+            {Number.isFinite(cheapest) && (
+              <span className="inline-flex items-center gap-1.5">
+                <Icon d={TAG} size={15} /> From {rupees(cheapest)}
+              </span>
+            )}
+            {vegCount > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <Icon d={LEAF} size={15} className="text-[#8fd3a8]" /> {vegCount} veg options
+              </span>
+            )}
+          </p>
+          <p className="mt-4 hidden max-w-[440px] text-[13.5px] leading-relaxed text-cream/80 md:block">
+            Small plates, mains, breads and desserts — cooked to order from whatever the morning market gave us.
+          </p>
+        </div>
+      </header>
+
       <MenuWelcome />
 
-      <div className={`mx-auto w-full max-w-[800px] px-4 pt-6 ${itemsInCart > 0 ? "pb-32" : "pb-24"}`}>
-        {/* ------------------------------------------------ breadcrumb */}
-        <nav aria-label="Breadcrumb" className="text-[12px] text-ink/45">
-          <Link href="/" className="hover:text-ink">
-            Home
-          </Link>
-          <span className="mx-1.5">/</span>
-          <span className="text-ink/70">Menu</span>
-        </nav>
-
-        {/* --------------------------------------------- restaurant card */}
-        <h1 className="mt-6 px-1 text-[26px] font-extrabold tracking-tight">Milli Milli</h1>
-
-        <div className="mt-4 rounded-[28px] bg-gradient-to-b from-white to-[#e9e9ee] px-4 pb-4">
-          <div className="rounded-[20px] border border-ink/[0.08] bg-white p-4 shadow-[0_8px_16px_rgba(28,20,15,0.06)]">
-            <p className="flex flex-wrap items-center gap-x-2 text-[16px] font-bold">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-basil text-[10px] text-white">
-                  ★
-                </span>
-                Tonight&apos;s market menu
-              </span>
-              <span className="text-ink/30">•</span>
-              <span suppressHydrationWarning>{today()}</span>
-            </p>
-            <p className="mt-1.5 text-[14px] font-semibold text-ember underline underline-offset-2">
-              {categories.map((c) => c.label).join(", ")}
-            </p>
-
-            <div className="mt-4 flex gap-3">
-              <div className="flex flex-col items-center pt-1.5">
-                <span className="h-[7px] w-[7px] rounded-full bg-ink/25" />
-                <span className="h-6 w-px bg-ink/20" />
-                <span className="h-[7px] w-[7px] rounded-full bg-ink/25" />
-              </div>
-              <div className="space-y-2.5 text-[14px]">
-                <p>
-                  <span className="font-bold">Kitchen</span>{" "}
-                  <span className="text-ink/55">— {totalDishes} dishes, cooked to order</span>
-                </p>
-                <p>
-                  <span className="font-bold">Your table</span>{" "}
-                  <span className="text-ink/55">— sent as they are ready</span>
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ----------------------------------------------- search + filters */}
-        <p className="mt-10 text-center text-[13px] font-semibold tracking-[0.35em] text-ink/55">
-          <span className="text-ink/25">~</span> MENU <span className="text-ink/25">~</span>
-        </p>
-
-        <label className="mt-5 flex h-12 items-center gap-3 rounded-xl bg-[#f0f0f5] px-4 text-ink/50 focus-within:ring-2 focus-within:ring-ink/10">
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search for dishes"
-            className="h-full flex-1 bg-transparent text-center text-[15px] font-semibold text-ink placeholder:text-ink/45 focus:outline-none"
-          />
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-            <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </label>
-
-        <div className="no-scrollbar mt-4 flex gap-2.5 overflow-x-auto border-b border-ink/10 pb-5">
-          {FILTERS.map((f) => {
-            const on = filters.has(f.id);
-            if (f.id === "veg" && vegCount === 0) return null;
-            if (f.id === "nonveg" && vegCount === totalDishes) return null;
-            if (f.id === "bestseller" && !hasBestsellers) return null;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggleFilter(f.id)}
-                className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-2 text-[14px] font-semibold shadow-[0_2px_6px_rgba(28,20,15,0.05)] transition-colors ${
-                  on ? "border-ink/40 bg-[#f0f0f5] text-ink" : "border-ink/12 text-ink/70 hover:border-ink/25"
-                }`}
-              >
-                {f.id === "veg" && <DietMark veg />}
-                {f.id === "nonveg" && <DietMark veg={false} />}
-                {f.label}
-                {on && <span className="text-[12px] text-ink/50">✕</span>}
-              </button>
-            );
-          })}
-        </div>
-
-        {!narrowed && <TopPicks dishes={picks} />}
-
-        {/* ------------------------------------------------- the courses */}
-        {visible.length === 0 ? (
-          <div className="py-20 text-center">
-            <p className="text-[17px] font-bold">No dishes match</p>
-            <p className="mt-1 text-[14px] text-ink/50">Try a different search or clear the filters.</p>
+      {/* --------------------------------------------------------- tab bar */}
+      <div className="sticky z-20 border-b border-ink/10 bg-cream/95 backdrop-blur" style={{ top: NAV_OFFSET }}>
+        <nav
+          aria-label="Courses"
+          className="no-scrollbar mx-auto flex w-full max-w-[1400px] gap-6 overflow-x-auto px-5 md:gap-9 md:px-10 lg:pl-[calc(2.5rem+232px)]"
+        >
+          {tabs.map((t) => (
             <button
+              key={t.id}
               type="button"
-              onClick={() => {
-                setQuery("");
-                setFilters(new Set());
-              }}
-              className="mt-5 rounded-lg border border-ink/15 px-5 py-2.5 text-[14px] font-bold text-ember"
+              onClick={() => jumpTo(t.id)}
+              aria-current={active === t.id ? "true" : undefined}
+              className={`relative shrink-0 py-4 text-[13px] transition-colors ${
+                active === t.id ? "text-rust" : "text-ink/65 hover:text-ink"
+              }`}
             >
-              Clear all
+              {t.label}
+              {active === t.id && (
+                <motion.span layoutId="menu-tab" className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-rust" />
+              )}
             </button>
-          </div>
-        ) : (
-          visible.map((c) => {
-            const open = narrowed || !collapsed.has(c.id);
-            return (
-              <section key={c.id} id={`course-${c.id}`} className="scroll-mt-20">
-                <div className="-mx-4 mt-6 h-4 bg-[#f2f2f7] md:mx-0" aria-hidden />
-                <button
-                  type="button"
-                  onClick={() => toggleCategory(c.id)}
-                  aria-expanded={open}
-                  className="flex w-full items-center justify-between py-6 text-left"
-                >
-                  <h2 className="text-[18px] font-extrabold tracking-tight">
-                    {c.label} ({c.items.length})
-                  </h2>
-                  <Chevron open={open} />
-                </button>
-                {open && (
-                  <div className="divide-y divide-ink/10">
-                    {c.items.map((d) => (
-                      <DishRow key={d.id} dish={d} />
-                    ))}
-                  </div>
-                )}
-              </section>
-            );
-          })
-        )}
+          ))}
+        </nav>
       </div>
 
-      {/* --------------------------------------------- browse menu button */}
       <div
-        className={`pointer-events-none fixed inset-x-0 z-30 transition-[bottom] duration-300 ${
-          itemsInCart > 0 ? "bottom-[84px]" : "bottom-6"
+        className={`mx-auto grid w-full max-w-[1400px] gap-8 px-5 md:px-10 lg:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[200px_minmax(0,1fr)_300px] ${
+          itemsInCart > 0 ? "pb-32 xl:pb-20" : "pb-20"
         }`}
       >
-        <div className="mx-auto flex w-full max-w-[800px] justify-end px-4">
-          <div className="pointer-events-auto relative">
-            <AnimatePresence>
-              {browsing && (
-                <>
-                  <div className="fixed inset-0" onClick={() => setBrowsing(false)} aria-hidden />
-                  <motion.ul
-                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                    transition={{ duration: 0.18, ease: EASE_OUT }}
-                    className="absolute right-0 bottom-[calc(100%+12px)] max-h-[60vh] w-[280px] origin-bottom-right overflow-y-auto rounded-2xl bg-espresso py-3 text-white shadow-[0_12px_32px_rgba(0,0,0,0.3)]"
-                  >
-                    {categories.map((c) => (
-                      <li key={c.id}>
-                        <button
-                          type="button"
-                          onClick={() => jumpTo(c.id)}
-                          className="flex w-full items-center justify-between px-5 py-2.5 text-left text-[15px] font-semibold hover:bg-white/10"
-                        >
-                          {c.label}
-                          <span className="text-white/70 tabular-nums">{c.items.length}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </motion.ul>
-                </>
-              )}
-            </AnimatePresence>
-            <button
-              type="button"
-              onClick={() => setBrowsing((v) => !v)}
-              aria-expanded={browsing}
-              className="relative flex h-[68px] w-[68px] flex-col items-center justify-center gap-0.5 rounded-full bg-espresso text-[11px] font-bold tracking-wide text-white shadow-[0_6px_18px_rgba(0,0,0,0.3)]"
+        {/* ------------------------------------------------------ sidebar */}
+        <aside className="hidden lg:block">
+          <div className="sticky space-y-8 pt-8" style={{ top: NAV_OFFSET + 52 }}>
+            <Link
+              href="/reserve-table"
+              className="flex items-center gap-3 rounded-lg border border-rust/20 bg-rust/[0.06] px-3.5 py-3 transition-colors hover:bg-rust/10"
             >
-              {browsing ? (
-                <span className="text-lg leading-none">✕</span>
-              ) : (
-                <>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                  MENU
-                </>
-              )}
-            </button>
+              <Icon d={LEAF} size={18} className="shrink-0 text-rust" />
+              <span className="flex-1">
+                <span className="block text-[12.5px] text-rust">Eating in?</span>
+                <span className="block text-[10.5px] text-ink/55">Book a table for tonight</span>
+              </span>
+              <Icon d="m9 6 6 6-6 6" size={13} className="text-rust" />
+            </Link>
+
+            {availableDiets.length > 0 && (
+              <fieldset>
+                <legend className="font-display text-[15px] text-ink">Dietary Preferences</legend>
+                <div className="mt-3.5 space-y-3">
+                  {availableDiets.map((f) => (
+                    <label key={f.id} className="flex cursor-pointer items-center gap-2.5 text-[12.5px] text-ink/70">
+                      <input
+                        type="checkbox"
+                        checked={diets.has(f.id)}
+                        onChange={() => toggleDiet(f.id)}
+                        className="h-[15px] w-[15px] cursor-pointer rounded-[3px] accent-rust"
+                      />
+                      {f.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+
+            <div>
+              <h3 className="font-display text-[15px] text-ink">Price Range</h3>
+              <div className="mt-4">
+                <PriceRange max={priceMax} value={price} onChange={setPrice} />
+              </div>
+            </div>
+
+            {narrowed && (
+              <button type="button" onClick={reset} className="text-[12px] text-rust hover:underline">
+                Clear filters
+              </button>
+            )}
           </div>
+        </aside>
+
+        {/* ----------------------------------------------------- the menu */}
+        <div className="min-w-0">
+          {/* phones and tablets get the diet filters as chips */}
+          {availableDiets.length > 0 && (
+            <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-5 lg:hidden">
+              {availableDiets.map((f) => {
+                const on = diets.has(f.id);
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleDiet(f.id)}
+                    className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[12.5px] transition-colors ${
+                      on ? "border-rust bg-rust text-cream" : "border-ink/15 text-ink/70"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {visible.length === 0 ? (
+            <div className="py-20 text-center">
+              <p className="font-display text-[20px]">No dishes match</p>
+              <p className="mt-1 text-[13px] text-ink/50">Try a different preference or widen the price range.</p>
+              <button
+                type="button"
+                onClick={reset}
+                className="mt-5 rounded-md border border-rust/30 px-5 py-2.5 text-[13px] text-rust"
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            <>
+              {!narrowed && recommended.length > 0 && (
+                <Section
+                  id="recommended"
+                  title="Recommended"
+                  note="Our chef's picks for the best experience."
+                  dishes={recommended}
+                  preview={3}
+                  showAll={false}
+                />
+              )}
+              {visible.map((c) => (
+                <Section
+                  key={c.id}
+                  id={c.id}
+                  title={c.label.charAt(0).toUpperCase() + c.label.slice(1)}
+                  note={c.note}
+                  dishes={c.items}
+                  preview={6}
+                  showAll={narrowed}
+                />
+              ))}
+            </>
+          )}
         </div>
+
+        {/* ---------------------------------------------------- the order */}
+        <aside className="hidden border-l border-ink/10 pl-7 xl:block">
+          <div className="sticky pt-8" style={{ top: NAV_OFFSET + 52 }}>
+            <OrderPanel />
+          </div>
+        </aside>
       </div>
 
-      {/* ---------------------------------------------------- cart bar */}
+      {/* --------------------------------- cart bar, below the order panel's breakpoint */}
       <AnimatePresence>
         {itemsInCart > 0 && (
           <motion.div
@@ -545,30 +681,21 @@ export function MenuExperience({ categories = CATEGORIES }: { categories?: Categ
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ duration: 0.25, ease: EASE_OUT }}
-            className="fixed inset-x-0 bottom-0 z-30 px-4 pb-4"
+            className="fixed inset-x-0 bottom-0 z-30 px-4 pb-4 xl:hidden"
           >
             <button
               type="button"
               onClick={openCart}
-              className="mx-auto flex h-[52px] w-full max-w-[768px] items-center justify-between rounded-xl bg-basil px-5 text-[15px] font-bold text-white shadow-[0_8px_24px_rgba(26,122,86,0.35)]"
+              className="mx-auto flex h-[54px] w-full max-w-[640px] items-center gap-3 rounded-xl bg-rust px-3 text-[15px] text-cream shadow-[0_10px_28px_rgba(176,69,31,0.4)]"
             >
-              <span className="tabular-nums">
-                {itemsInCart} item{itemsInCart === 1 ? "" : "s"} added
-                {cart?.subtotal != null && cart.subtotal > 0 && (
-                  <span className="font-semibold text-white/80"> · {rupees(cart.subtotal)}</span>
-                )}
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-cream text-[13px] text-rust tabular-nums">
+                {itemsInCart}
               </span>
-              <span className="inline-flex items-center gap-2 uppercase">
-                View cart
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path
-                    d="M6 7h12l-1 13H7L6 7Zm3 0a3 3 0 0 1 6 0"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
+              <span className="flex-1 text-left">View cart</span>
+              {cart?.subtotal != null && cart.subtotal > 0 && (
+                <span className="tabular-nums">{rupees(cart.subtotal)}</span>
+              )}
+              <Icon d={ARROW} size={18} className="mr-1" />
             </button>
           </motion.div>
         )}
