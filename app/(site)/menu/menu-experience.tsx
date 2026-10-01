@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCart } from "@/app/lib/cart-context";
-import { useCartDrawer } from "@/app/components/cart-drawer";
+import { OrderNowButton, useCartDrawer } from "@/app/components/cart-drawer";
 import { dishImage } from "@/app/lib/dish-images";
 import type { MenuItem } from "@/app/lib/menu-api";
 import { imageFor } from "./menu-adapter";
@@ -425,12 +425,7 @@ function OrderPanel() {
             <p className="mt-1.5 text-[11px] text-ink/45">Some dishes have no price recorded, so this total is incomplete.</p>
           )}
 
-          <Link
-            href="/reserve-table"
-            className="mt-5 flex h-11 items-center justify-center gap-2 rounded-md bg-rust text-[13px] text-cream shadow-[0_6px_16px_rgba(176,69,31,0.28)] transition-colors hover:bg-[#953a19]"
-          >
-            Book a table with this order <Icon d={ARROW} size={14} />
-          </Link>
+          <OrderNowButton className="mt-5 h-11 w-full rounded-md bg-rust text-cream shadow-[0_6px_16px_rgba(176,69,31,0.28)] hover:bg-[#953a19]" />
 
           <p className="mt-4 flex items-start gap-3 text-[11.5px] text-ink/55">
             <Icon d={CLOCK} size={20} className="shrink-0 text-ink/60" />

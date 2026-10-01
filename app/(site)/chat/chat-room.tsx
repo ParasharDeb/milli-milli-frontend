@@ -16,7 +16,9 @@ import {
   type RecommendationGroup,
 } from "@/app/lib/menu-api";
 import { useCart } from "@/app/lib/cart-context";
+import { useCartDrawer } from "@/app/components/cart-drawer";
 import { imageFor } from "../menu/menu-adapter";
+import { orderIntent } from "./order-intent";
 import { OPENING, reply, type Reply } from "./responses";
 import { MENU_CARDS, VIEW_MENU, quickPick } from "./quick-picks";
 import { ComboBlock } from "./combo-block";
@@ -445,6 +447,22 @@ function headline(groups: RecommendationGroup[], partySize: number): string {
   return `Here is what I would send out${who} — three options against each thing you asked for.`;
 }
 
+/** The dishes a reply put in front of the guest, whichever way it showed them. */
+function shownDishes(m: Message): MenuItem[] {
+  if (m.added?.length) return m.added;
+  if (m.dishes?.length) return m.dishes;
+  if (m.options?.length) return m.options.map((o) => o.item);
+  if (m.groups?.length) return m.groups.flatMap((g) => g.recommendations.map((r) => r.item));
+  return [];
+}
+
+/** Once something is in the order, "Place my order" is always one tap away. */
+function withPlaceOrder(chips: string[] | undefined, cart: CartView): string[] | undefined {
+  if (cart.totalItems === 0) return chips;
+  const rest = (chips ?? []).filter((c) => !orderIntent(c));
+  return ["Place my order", ...rest];
+}
+
 function opening(id: number): Message {
   return { id, from: "bot", text: OPENING.text, chips: OPENING.chips };
 }
@@ -454,7 +472,8 @@ function opening(id: number): Message {
 export function ChatRoom() {
   // A reply that changes the order carries the whole new cart, so the nav badge
   // updates from it rather than refetching.
-  const { apply } = useCart();
+  const { apply, add, cart } = useCart();
+  const { placeOrder } = useCartDrawer();
   const [messages, setMessages] = useState<Message[]>([opening(0)]);
   const [draft, setDraft] = useState("");
   const [thinking, setThinking] = useState(false);
@@ -579,6 +598,102 @@ export function ChatRoom() {
     else reset();
   }
 
+  /**
+   * Orders from the conversation. "Order this" right after a reply that showed
+   * exactly one dish means that dish, so it goes in first; with several on
+   * screen and none of them in the order yet, Milli asks which.
+   */
+  /**
+   * The latest reply that put dishes in front of the guest, looking back past
+   * Milli's own "which one?" (which only carries chips) but not far.
+   */
+  function lastShown(): { lastBot?: Message; shown: MenuItem[] } {
+    const recent = messages.filter((m) => m.from === "bot").slice(-3).reverse();
+    for (const m of recent) {
+      const shown = shownDishes(m);
+      if (shown.length) return { lastBot: m, shown };
+    }
+    return { shown: [] };
+  }
+
+  async function placeFromChat(refersToShown: boolean) {
+    try {
+      const { lastBot, shown } = lastShown();
+      const inCart = (id: string) =>
+        cart?.lines.some((l) => l.item.id === id) || lastBot?.added?.some((a) => a.id === id);
+
+      if (refersToShown && shown.length === 1 && !inCart(shown[0].id)) await add(shown[0].id);
+
+      // Rather than guess, and rather than placing whatever else is in the cart.
+      if (refersToShown && shown.length > 1 && !shown.some((d) => inCart(d.id))) {
+        say(
+          "Happy to — which one should I order?",
+          shown.slice(0, 3).map((d) => `Order ${d.name}`),
+        );
+        return;
+      }
+
+      await announceOrder();
+    } catch (error) {
+      orderFailed(error);
+    }
+  }
+
+  /**
+   * "Add X" or "Order X" naming, exactly, a dish the last reply showed. Handled
+   * here by id, because the backend can ask "which one?" again for a name that
+   * prefixes another dish's ("Paneer Tikka" / "Paneer Tikka Butter Masala").
+   */
+  function shownPick(text: string): { dish: MenuItem; place: boolean } | null {
+    const match = /^(add|order)\s+(?:the\s+)?(.+?)[.!]*$/i.exec(text);
+    if (!match) return null;
+    const name = match[2].toLowerCase();
+    const dish = lastShown().shown.find((d) => d.name.toLowerCase() === name);
+    return dish ? { dish, place: match[1].toLowerCase() === "order" } : null;
+  }
+
+  async function orderShown({ dish, place }: { dish: MenuItem; place: boolean }) {
+    try {
+      await add(dish.id);
+      if (place) await announceOrder();
+      else say(`Added **${dish.name}** to your order.`, ["Place my order", "Something to drink?"]);
+    } catch (error) {
+      orderFailed(error);
+    }
+  }
+
+  function say(text: string, chips?: string[]) {
+    setMessages((m) => [...m, { id: nextId.current++, from: "bot", text, chips }]);
+  }
+
+  async function announceOrder() {
+    const order = await placeOrder();
+    if (!order) {
+      say(
+        "There's nothing in your order yet. Tell me what you'd like — say **add paneer tikka**, or ask for a suggestion — and I'll place it.",
+        ["Suggest something", VIEW_MENU],
+      );
+      return;
+    }
+
+    const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+    const lines = order.lines.map(
+      (l) => `• ${l.qty > 1 ? `${l.qty}× ` : ""}${l.item.name}${l.lineTotal != null ? ` — ${rupees(l.lineTotal)}` : ""}`,
+    );
+    const total = order.subtotal != null ? `\n\n**Total: ${rupees(order.subtotal)}**` : "";
+    say(`Done — your order is placed. 🎉\n\n${lines.join("\n")}${total}\n\nThe kitchen has it. Anything else?`, [
+      "Something to drink?",
+      "Dessert ideas",
+    ]);
+  }
+
+  function orderFailed(error: unknown) {
+    console.error("[chat] placing the order failed:", error);
+    say("I couldn't place the order just now — the kitchen isn't answering. Try again in a moment?", [
+      "Place my order",
+    ]);
+  }
+
   async function send(raw: string) {
     const text = raw.trim();
     if (!text || thinking) return;
@@ -587,6 +702,18 @@ export function ChatRoom() {
     setDraft("");
     setThinking(true);
     let followUp: FollowUp | undefined;
+
+    // Ordering is answered here: "yes, order this for me" places the order,
+    // which the backend cannot do, and a dish picked by its exact name goes in
+    // by id.
+    const pick = shownPick(text);
+    const intent = pick ? null : orderIntent(text);
+    if (pick || intent) {
+      if (pick) await orderShown(pick);
+      else if (intent) await placeFromChat(intent.refersToShown);
+      setThinking(false);
+      return;
+    }
 
     // The start-menu buttons are answered locally, with a fresh random pick.
     try {
@@ -639,7 +766,7 @@ export function ChatRoom() {
             added: res.changed,
             // The follow-up carries its own chips; the confirmation keeps none,
             // so "No thanks" only ever sits under the question it answers.
-            chips: res.followUp ? undefined : res.chips,
+            chips: res.followUp ? undefined : withPlaceOrder(res.chips, res.cart),
           };
           break;
 
