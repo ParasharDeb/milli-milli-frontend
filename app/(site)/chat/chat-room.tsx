@@ -93,7 +93,7 @@ const TOPICS: { id: string; title: string; sub: string; ask: string | null; icon
   {
     id: "general",
     title: "General",
-    sub: "Menu, reservations, hours",
+    sub: "Menu, reservations",
     ask: null,
     icon: (
       <TopicIcon>
@@ -114,17 +114,6 @@ const TOPICS: { id: string; title: string; sub: string; ask: string | null; icon
     ),
   },
   {
-    id: "room",
-    title: "The Room",
-    sub: "Indoor, outdoor, atmosphere",
-    ask: "Tell me about the space",
-    icon: (
-      <TopicIcon>
-        <path d="M4 20V10l8-6 8 6v10M9 20v-5.5a3 3 0 0 1 6 0V20" {...S} />
-      </TopicIcon>
-    ),
-  },
-  {
     id: "reservations",
     title: "Reservations",
     sub: "Availability, group bookings",
@@ -133,29 +122,6 @@ const TOPICS: { id: string; title: string; sub: string; ask: string | null; icon
       <TopicIcon>
         <rect x="4" y="5" width="16" height="15" rx="2" {...S} />
         <path d="M4 10h16M8.5 3v4m7-4v4m-6 7.5 2 2 3.5-3.5" {...S} />
-      </TopicIcon>
-    ),
-  },
-  {
-    id: "events",
-    title: "Events",
-    sub: "Private dining, celebrations",
-    ask: "Do you host private dining or celebrations?",
-    icon: (
-      <TopicIcon>
-        <path d="M12 3.5 14.3 8l5 .7-3.6 3.5.8 5-4.5-2.4-4.5 2.4.8-5L4.7 8.7l5-.7L12 3.5Z" {...S} />
-      </TopicIcon>
-    ),
-  },
-  {
-    id: "location",
-    title: "Location & Hours",
-    sub: "How to reach us",
-    ask: "Where are you and what are your hours?",
-    icon: (
-      <TopicIcon>
-        <path d="M12 21s6.5-5.6 6.5-11a6.5 6.5 0 0 0-13 0c0 5.4 6.5 11 6.5 11Z" {...S} />
-        <circle cx="12" cy="10" r="2.3" {...S} />
       </TopicIcon>
     ),
   },

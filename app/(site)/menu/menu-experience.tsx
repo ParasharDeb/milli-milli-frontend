@@ -630,7 +630,6 @@ export function MenuExperience({ categories = CATEGORIES }: { categories?: Categ
         <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/10" />
         <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/40" />
         <div className="relative mx-auto w-full max-w-[1400px] px-5 pt-[110px] pb-10 md:px-10 md:pt-[150px] md:pb-14">
-          <h1 className="font-display text-[44px] leading-none tracking-tight md:text-[64px]">Milli Milli</h1>
         </div>
       </header>
 

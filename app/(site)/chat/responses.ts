@@ -176,7 +176,7 @@ export function reply(input: string): Reply {
 }
 
 export const OPENING: Reply = {
-  text: "Hi, I'm Milli 👋\nI can help you with the menu, reservations, the space, location, or anything about your visit.\n\nWhat would you like to know?",
+  text: "Hi, I'm Milli 👋\nI can help you with the menu, reservations, or anything about your visit.\n\nWhat would you like to know?",
   chips: [
     TODAY,
     "Is there a table for tonight?",

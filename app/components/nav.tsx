@@ -14,9 +14,6 @@ const LINKS = [
   ["Menu", "/menu"],
   ["Reserve", "/reserve-table"],
   ["Ask Milli", "/chat"],
-  ["The Room", "/#room"],
-  ["Journal", "/#journal"],
-  ["About", "/#about"],
 ];
 
 export function Nav() {

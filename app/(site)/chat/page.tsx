@@ -4,7 +4,7 @@ import { ChatRoom } from "./chat-room";
 
 export const metadata: Metadata = {
   title: "Chat with Milli — Milli Milli",
-  description: "Ask about the menu, reservations, the space or anything else about your visit.",
+  description: "Ask about the menu, reservations or anything else about your visit.",
 };
 
 export default function ChatPage() {
@@ -31,7 +31,7 @@ export default function ChatPage() {
             <span className="text-ember">Milli.</span>
           </h1>
           <p className="mt-6 max-w-sm text-[16px] leading-relaxed text-cream/85">
-            Ask about the menu, reservations, the space or anything else. I&apos;m here to help.
+            Ask about the menu, reservations or anything else. I&apos;m here to help.
           </p>
         </div>
       </section>
