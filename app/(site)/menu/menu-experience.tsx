@@ -23,12 +23,12 @@ const ORDERABLE = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
 /** Where the floating nav ends once it has lifted; the tab bar sticks below it. */
 const NAV_OFFSET = 64;
 
-type Diet = "veg" | "jain" | "egg" | "seafood";
+type Diet = "jain" | "egg" | "seafood";
+type VegMode = "veg" | "nonveg" | null;
 
 const isVeg = (d: Dish) => d.tags.includes("Vegetarian");
 
 const DIETS: { id: Diet; label: string; test: (d: Dish) => boolean }[] = [
-  { id: "veg", label: "Vegetarian", test: isVeg },
   { id: "jain", label: "Jain Friendly", test: (d) => d.diet === "Jain" },
   { id: "egg", label: "Eggetarian", test: (d) => d.diet === "Eggetarian" },
   { id: "seafood", label: "Seafood", test: (d) => d.diet === "OnlyFish" || d.tags.includes("Seafood") },
@@ -36,10 +36,6 @@ const DIETS: { id: Diet; label: string; test: (d: Dish) => boolean }[] = [
 
 function rupees(n?: number | null) {
   return n == null ? null : `₹${Math.round(n).toLocaleString("en-IN")}`;
-}
-
-function today() {
-  return new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long" });
 }
 
 /* ------------------------------------------------------------------ icons */
@@ -58,7 +54,6 @@ const MINUS = "M5 12h14";
 const TRASH = "M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3";
 const CLOCK = "M12 7v5l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z";
 const LEAF = "M5 19C5 10 10 5 20 4c-1 10-6 15-15 15Zm0 0 7-7";
-const TAG = "M4 12V4h8l8 8-8 8-8-8Zm4-4h.01";
 
 /* ----------------------------------------------------------------- photos */
 
@@ -161,23 +156,33 @@ function AddControl({ dish }: { dish: Dish }) {
 /* ------------------------------------------------------------------ cards */
 
 /** A row with the photo on the left on phones, a photo-topped card from `sm` up. */
-function DishCard({ dish }: { dish: Dish }) {
+function DishCard({ dish, onOpen }: { dish: Dish; onOpen: (d: Dish) => void }) {
   return (
-    <article className="flex gap-4 border-b border-ink/10 py-3 sm:flex-col sm:gap-0 sm:overflow-hidden sm:rounded-lg sm:border sm:border-ink/[0.06] sm:bg-[#fbf7f1] sm:py-0 sm:shadow-[0_6px_18px_rgba(28,20,15,0.06)]">
+    <article
+      onClick={() => onOpen(dish)}
+      className="flex cursor-pointer gap-4 border-b border-ink/10 py-3 sm:flex-col sm:gap-0 sm:overflow-hidden sm:rounded-lg sm:border sm:border-ink/[0.06] sm:bg-[#fbf7f1] sm:py-0 sm:shadow-[0_6px_18px_rgba(28,20,15,0.06)] sm:transition-shadow sm:hover:shadow-[0_10px_24px_rgba(28,20,15,0.12)]"
+    >
       <div className="relative h-[84px] w-[96px] shrink-0 overflow-hidden rounded-lg bg-sand sm:aspect-[4/3] sm:h-auto sm:w-full sm:rounded-none">
         <DishPhoto name={dish.name} img={dish.img} sizes="(min-width: 640px) 320px, 96px" />
       </div>
       <div className="flex min-w-0 flex-1 items-center gap-3 sm:items-end sm:px-3 sm:pt-3 sm:pb-3.5">
         <div className="min-w-0 flex-1">
-          <h3 className="font-display text-[15px] leading-snug text-ink sm:text-[15.5px]">{dish.name}</h3>
-          {/* price sits under the name on cards, under the description in rows */}
-          <p className="mt-1 hidden text-[13px] text-ink/60 tabular-nums sm:block">{rupees(dish.price)}</p>
-          <p className="mt-0.5 line-clamp-2 text-[12px] leading-[1.45] text-ink/50">{dish.desc}</p>
+          <div className="flex items-start gap-2">
+            <DietMark veg={isVeg(dish)} className="mt-[3px]" />
+            <h3 className="font-display text-[15px] leading-snug text-ink sm:text-[15.5px]">
+              {/* the name is the keyboard route to the description; the whole card takes clicks */}
+              <button type="button" className="text-left focus:outline-none focus-visible:underline">
+                {dish.name}
+              </button>
+            </h3>
+          </div>
           {rupees(dish.price) && (
-            <p className="mt-1.5 text-[13px] text-rust tabular-nums sm:hidden">{rupees(dish.price)}</p>
+            <p className="mt-1.5 text-[13px] text-rust tabular-nums sm:text-ink/60">{rupees(dish.price)}</p>
           )}
         </div>
-        <AddControl dish={dish} />
+        <div onClick={(e) => e.stopPropagation()}>
+          <AddControl dish={dish} />
+        </div>
       </div>
     </article>
   );
@@ -190,6 +195,7 @@ function Section({
   dishes,
   preview,
   showAll,
+  onOpen,
 }: {
   id: string;
   title: string;
@@ -197,6 +203,7 @@ function Section({
   dishes: Dish[];
   preview: number;
   showAll: boolean;
+  onOpen: (d: Dish) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const open = showAll || expanded;
@@ -222,10 +229,141 @@ function Section({
       </div>
       <div className="mt-3 grid gap-x-3 sm:mt-4 sm:grid-cols-2 sm:gap-y-3 lg:grid-cols-3">
         {shown.map((d) => (
-          <DishCard key={d.id} dish={d} />
+          <DishCard key={d.id} dish={d} onOpen={onOpen} />
         ))}
       </div>
     </section>
+  );
+}
+
+/** The square-and-dot food mark: green circle for veg, red triangle otherwise. */
+function DietMark({ veg, className = "" }: { veg: boolean; className?: string }) {
+  return (
+    <span
+      role="img"
+      aria-label={veg ? "Vegetarian" : "Non-vegetarian"}
+      className={`inline-flex h-[13px] w-[13px] shrink-0 items-center justify-center rounded-[2px] border-[1.5px] ${
+        veg ? "border-basil" : "border-[#b33a2b]"
+      } ${className}`}
+    >
+      {veg ? (
+        <span className="h-[5px] w-[5px] rounded-full bg-basil" />
+      ) : (
+        <span className="h-0 w-0 border-x-[3px] border-b-[5px] border-x-transparent border-b-[#b33a2b]" />
+      )}
+    </span>
+  );
+}
+
+/** Veg and non-veg as two switches that exclude each other; pressing the lit one clears it. */
+function VegToggle({ value, onChange }: { value: VegMode; onChange: (v: VegMode) => void }) {
+  const options: { id: "veg" | "nonveg"; label: string }[] = [
+    { id: "veg", label: "Veg" },
+    { id: "nonveg", label: "Non-veg" },
+  ];
+  return (
+    <div
+      role="group"
+      aria-label="Veg or non-veg"
+      className="flex shrink-0 rounded-full border border-ink/15 bg-[#fbf7f1] p-[3px]"
+    >
+      {options.map((o) => {
+        const on = value === o.id;
+        return (
+          <button
+            key={o.id}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(on ? null : o.id)}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition-colors ${
+              on ? (o.id === "veg" ? "bg-basil text-cream" : "bg-[#b33a2b] text-cream") : "text-ink/65 hover:text-ink"
+            }`}
+          >
+            <span className={on ? "flex rounded-[3px] bg-cream p-[1px]" : "flex"}>
+              <DietMark veg={o.id === "veg"} />
+            </span>
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The dish, opened: large photo and the full description. A bottom sheet on phones. */
+function DishSheet({ dish, onClose }: { dish: Dish | null; onClose: () => void }) {
+  useEffect(() => {
+    if (!dish) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dish, onClose]);
+
+  return (
+    <AnimatePresence>
+      {dish && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-ink/50 backdrop-blur-sm"
+            aria-hidden
+          />
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={dish.name}
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ duration: 0.28, ease: EASE_OUT }}
+            className="relative max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-cream shadow-2xl sm:max-w-[480px] sm:rounded-2xl"
+          >
+            <div className="relative aspect-[4/3] w-full bg-sand">
+              <DishPhoto name={dish.name} img={dish.img} sizes="480px" />
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-cream/90 text-ink/70 shadow hover:text-ink"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-5 sm:p-6">
+              <div className="flex items-center gap-2">
+                <DietMark veg={isVeg(dish)} />
+                {dish.bestseller && <span className="text-[12px] text-rust">★ Bestseller</span>}
+              </div>
+              <h2 className="mt-2 font-display text-[24px] leading-tight text-ink">{dish.name}</h2>
+              <p className="mt-3 text-[14px] leading-relaxed text-ink/70">{dish.desc}</p>
+              {(dish.tags.length > 0 || dish.spice > 0) && (
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {dish.spice > 0 && (
+                    <span className="rounded-full bg-ember/10 px-2.5 py-1 text-[11.5px] text-ember">
+                      {"🌶".repeat(dish.spice)} {dish.spice === 3 ? "Hot" : dish.spice === 2 ? "Medium" : "Mild"}
+                    </span>
+                  )}
+                  {dish.tags.map((t) => (
+                    <span key={t} className="rounded-full bg-ink/[0.06] px-2.5 py-1 text-[11.5px] text-ink/65">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="mt-6 flex items-center justify-between border-t border-ink/10 pt-4">
+                <span className="font-display text-[20px] text-ink tabular-nums">{rupees(dish.price) ?? ""}</span>
+                <AddControl dish={dish} />
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -408,20 +546,21 @@ export function MenuExperience({ categories = CATEGORIES }: { categories?: Categ
     return Math.max(100, Math.ceil(top / 100) * 100);
   }, [all]);
   const [price, setPrice] = useState<[number, number]>([0, priceMax]);
-  const cheapest = Math.min(...all.map((d) => d.price ?? Infinity));
-  const vegCount = all.filter(isVeg).length;
+  const [vegMode, setVegMode] = useState<VegMode>(null);
+  const [openDish, setOpenDish] = useState<Dish | null>(null);
 
   const availableDiets = DIETS.filter((f) => all.some(f.test));
   const priceNarrowed = price[0] > 0 || price[1] < priceMax;
-  const narrowed = diets.size > 0 || priceNarrowed;
+  const narrowed = vegMode !== null || diets.size > 0 || priceNarrowed;
 
   const keep = useMemo(() => {
     const tests = DIETS.filter((f) => diets.has(f.id)).map((f) => f.test);
     return (d: Dish) =>
+      (vegMode === null || (vegMode === "veg") === isVeg(d)) &&
       (tests.length === 0 || tests.some((t) => t(d))) &&
       // An unpriced dish is never hidden by the slider: there is nothing to compare.
       (d.price == null || (d.price >= price[0] && (price[1] >= priceMax || d.price <= price[1])));
-  }, [diets, price, priceMax]);
+  }, [vegMode, diets, price, priceMax]);
 
   const visible = useMemo(
     () => categories.map((c) => ({ ...c, items: c.items.filter(keep) })).filter((c) => c.items.length > 0),
@@ -476,6 +615,7 @@ export function MenuExperience({ categories = CATEGORIES }: { categories?: Categ
   }
 
   function reset() {
+    setVegMode(null);
     setDiets(new Set());
     setPrice([0, priceMax]);
   }
@@ -489,63 +629,36 @@ export function MenuExperience({ categories = CATEGORIES }: { categories?: Categ
         <Image src="/img/table-night.webp" alt="" fill priority sizes="100vw" className="object-cover object-center" />
         <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/10" />
         <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/40" />
-        <div className="relative mx-auto w-full max-w-[1400px] px-5 pt-[104px] pb-10 md:px-10 md:pt-[136px] md:pb-12">
+        <div className="relative mx-auto w-full max-w-[1400px] px-5 pt-[110px] pb-10 md:px-10 md:pt-[150px] md:pb-14">
           <h1 className="font-display text-[44px] leading-none tracking-tight md:text-[64px]">Milli Milli</h1>
-          <p className="mt-4 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-cream/90 md:text-[14px]">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="text-amber">★</span> Tonight&apos;s market menu
-            </span>
-            <span className="text-cream/50">•</span>
-            <span suppressHydrationWarning>{today()}</span>
-            <span className="text-cream/50">•</span>
-            <span>{all.length} dishes</span>
-          </p>
-          <p className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px] text-cream/90 md:text-[14px]">
-            <span className="inline-flex items-center gap-1.5">
-              <Icon d={CLOCK} size={15} /> Cooked to order
-            </span>
-            {Number.isFinite(cheapest) && (
-              <span className="inline-flex items-center gap-1.5">
-                <Icon d={TAG} size={15} /> From {rupees(cheapest)}
-              </span>
-            )}
-            {vegCount > 0 && (
-              <span className="inline-flex items-center gap-1.5">
-                <Icon d={LEAF} size={15} className="text-[#8fd3a8]" /> {vegCount} veg options
-              </span>
-            )}
-          </p>
-          <p className="mt-4 hidden max-w-[440px] text-[13.5px] leading-relaxed text-cream/80 md:block">
-            Small plates, mains, breads and desserts — cooked to order from whatever the morning market gave us.
-          </p>
         </div>
       </header>
 
       <MenuWelcome />
 
-      {/* --------------------------------------------------------- tab bar */}
+      {/* ------------------------------------- tab bar, veg toggle on the right */}
       <div className="sticky z-20 border-b border-ink/10 bg-cream/95 backdrop-blur" style={{ top: NAV_OFFSET }}>
-        <nav
-          aria-label="Courses"
-          className="no-scrollbar mx-auto flex w-full max-w-[1400px] gap-6 overflow-x-auto px-5 md:gap-9 md:px-10 lg:pl-[calc(2.5rem+232px)]"
-        >
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => jumpTo(t.id)}
-              aria-current={active === t.id ? "true" : undefined}
-              className={`relative shrink-0 py-4 text-[13px] transition-colors ${
-                active === t.id ? "text-rust" : "text-ink/65 hover:text-ink"
-              }`}
-            >
-              {t.label}
-              {active === t.id && (
-                <motion.span layoutId="menu-tab" className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-rust" />
-              )}
-            </button>
-          ))}
-        </nav>
+        <div className="mx-auto flex w-full max-w-[1400px] items-center gap-4 px-5 md:px-10 lg:pl-[calc(2.5rem+232px)]">
+          <nav aria-label="Courses" className="no-scrollbar flex min-w-0 flex-1 gap-6 overflow-x-auto md:gap-9">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => jumpTo(t.id)}
+                aria-current={active === t.id ? "true" : undefined}
+                className={`relative shrink-0 py-4 text-[13px] transition-colors ${
+                  active === t.id ? "text-rust" : "text-ink/65 hover:text-ink"
+                }`}
+              >
+                {t.label}
+                {active === t.id && (
+                  <motion.span layoutId="menu-tab" className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-rust" />
+                )}
+              </button>
+            ))}
+          </nav>
+          <VegToggle value={vegMode} onChange={setVegMode} />
+        </div>
       </div>
 
       <div
@@ -648,6 +761,7 @@ export function MenuExperience({ categories = CATEGORIES }: { categories?: Categ
                   dishes={recommended}
                   preview={3}
                   showAll={false}
+                  onOpen={setOpenDish}
                 />
               )}
               {visible.map((c) => (
@@ -659,6 +773,7 @@ export function MenuExperience({ categories = CATEGORIES }: { categories?: Categ
                   dishes={c.items}
                   preview={6}
                   showAll={narrowed}
+                  onOpen={setOpenDish}
                 />
               ))}
             </>
@@ -672,6 +787,8 @@ export function MenuExperience({ categories = CATEGORIES }: { categories?: Categ
           </div>
         </aside>
       </div>
+
+      <DishSheet dish={openDish} onClose={() => setOpenDish(null)} />
 
       {/* --------------------------------- cart bar, below the order panel's breakpoint */}
       <AnimatePresence>
