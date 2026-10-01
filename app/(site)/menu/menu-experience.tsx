@@ -193,42 +193,20 @@ function Section({
   title,
   note,
   dishes,
-  preview,
-  showAll,
   onOpen,
 }: {
   id: string;
   title: string;
   note: string;
   dishes: Dish[];
-  preview: number;
-  showAll: boolean;
   onOpen: (d: Dish) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const open = showAll || expanded;
-  const shown = open ? dishes : dishes.slice(0, preview);
-
   return (
     <section id={`course-${id}`} className="scroll-mt-[136px] pt-8 first:pt-6">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h2 className="font-display text-[22px] leading-tight text-ink md:text-[30px]">{title}</h2>
-          <p className="mt-1 hidden text-[13px] text-ink/55 md:block">{note}</p>
-        </div>
-        {!showAll && dishes.length > preview && (
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="inline-flex shrink-0 items-center gap-1.5 pb-1 text-[12.5px] text-rust hover:underline"
-          >
-            {expanded ? "Show less" : `View all ${dishes.length}`}
-            <Icon d={ARROW} size={13} className={`transition-transform ${expanded ? "-rotate-90" : ""}`} />
-          </button>
-        )}
-      </div>
+      <h2 className="font-display text-[22px] leading-tight text-ink md:text-[30px]">{title}</h2>
+      <p className="mt-1 hidden text-[13px] text-ink/55 md:block">{note}</p>
       <div className="mt-3 grid gap-x-3 sm:mt-4 sm:grid-cols-2 sm:gap-y-3 lg:grid-cols-3">
-        {shown.map((d) => (
+        {dishes.map((d) => (
           <DishCard key={d.id} dish={d} onOpen={onOpen} />
         ))}
       </div>
@@ -758,8 +736,6 @@ export function MenuExperience({ categories = CATEGORIES }: { categories?: Categ
                   title="Recommended"
                   note="Our chef's picks for the best experience."
                   dishes={recommended}
-                  preview={3}
-                  showAll={false}
                   onOpen={setOpenDish}
                 />
               )}
@@ -770,8 +746,6 @@ export function MenuExperience({ categories = CATEGORIES }: { categories?: Categ
                   title={c.label.charAt(0).toUpperCase() + c.label.slice(1)}
                   note={c.note}
                   dishes={c.items}
-                  preview={6}
-                  showAll={narrowed}
                   onOpen={setOpenDish}
                 />
               ))}
