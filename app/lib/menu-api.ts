@@ -309,6 +309,100 @@ export function clearCart() {
   return request<CartView>("/api/cart", { method: "DELETE" });
 }
 
+/* ---------------------------------------------------------------- orders -- */
+
+export type OrderStatus = "pending" | "accepted" | "rejected" | "cancelled";
+
+export type OrderLine = {
+  itemId: string;
+  name: string;
+  qty: number;
+  unitPrice: number | null;
+  lineTotal: number | null;
+};
+
+/** The cart, sent for a captain to confirm. Placed only once `accepted`. */
+export type Order = {
+  id: string;
+  code: string;
+  status: OrderStatus;
+  tableNumber: string | null;
+  phone: string | null;
+  note: string | null;
+  lines: OrderLine[];
+  itemCount: number;
+  subtotal: number | null;
+  rejectReason: string | null;
+  sentToFloor: boolean;
+  createdAt: string;
+  decidedAt: string | null;
+};
+
+export type PlaceOrderInput = {
+  tableNumber?: string;
+  phone?: string;
+  guestName?: string;
+  note?: string;
+};
+
+/** Sends the cart to the floor. The backend empties the cart as it does. */
+export function sendOrder(input: PlaceOrderInput) {
+  return request<{ order: Order }>("/api/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchOrder(id: string) {
+  return request<{ order: Order }>(`/api/orders/${id}`, { cache: "no-store" });
+}
+
+export function cancelOrder(id: string) {
+  return request<{ order: Order }>(`/api/orders/${id}/cancel`, { method: "POST" });
+}
+
+export type StaffOrder = Order & {
+  guestName: string | null;
+  decidedBy: string | null;
+  kcplStatus: "sent" | "failed" | "skipped";
+  kcplError: string | null;
+};
+
+export type StaffOrdersResponse = {
+  counts: Record<OrderStatus, number>;
+  orders: StaffOrder[];
+};
+
+/** Staff-only. The last 24 hours of orders, newest first. */
+export async function fetchStaffOrders(token: string): Promise<StaffOrdersResponse> {
+  const res = await fetch("/api/admin/orders", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (res.status === 401 || res.status === 403) throw new StaffAuthError("Signed out");
+  if (!res.ok) throw new Error(`Request failed (${res.status})`);
+  return res.json() as Promise<StaffOrdersResponse>;
+}
+
+/** Staff-only. What a captain does at the table when KCPL isn't doing it. */
+export async function decideOrder(
+  token: string,
+  id: string,
+  status: "accepted" | "rejected",
+  reason?: string,
+): Promise<StaffOrder> {
+  const res = await fetch(`/api/admin/orders/${id}/decision`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ status, ...(reason ? { reason } : {}) }),
+  });
+  if (res.status === 401 || res.status === 403) throw new StaffAuthError("Signed out");
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((body as ApiError | null)?.error?.message ?? `Request failed (${res.status})`);
+  return (body as { order: StaffOrder }).order;
+}
+
 /* --------------------------------------------------------------- reviews -- */
 
 export type ReviewEntry = {

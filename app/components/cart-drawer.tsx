@@ -2,10 +2,21 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useCart } from "@/app/lib/cart-context";
-import { DIET_LABEL, fetchCart, isVeg, priceLabel, type CartView } from "@/app/lib/menu-api";
+import {
+  cancelOrder,
+  DIET_LABEL,
+  fetchCart,
+  fetchOrder,
+  isVeg,
+  priceLabel,
+  type CartView,
+  type Order,
+} from "@/app/lib/menu-api";
+import { setTable, tableFromLocation } from "@/app/lib/table";
 import { Stepper } from "@/app/components/stepper";
+import { CheckoutSheet, OrderStatusView } from "@/app/components/order-flow";
 
 /**
  * The order, as a slide-over.
@@ -15,15 +26,22 @@ import { Stepper } from "@/app/components/stepper";
  * that at the table is worse than a line of small print here.
  */
 
+export type PlaceResult =
+  | { status: "empty" }
+  /** The guest closed the checkout without sending. */
+  | { status: "cancelled" }
+  /** Sent to the floor; a captain will confirm it. Not yet placed. */
+  | { status: "sent"; order: Order };
+
 type DrawerState = {
   open: () => void;
   close: () => void;
   /**
-   * Places the order. A dummy for now: nothing reaches a kitchen; the cart is
-   * emptied and a toast confirms it. Resolves to the order that was placed, or
-   * null when there was nothing in it.
+   * Starts sending the order: opens the checkout, which asks where the guest is
+   * sitting, and resolves once they send it or back out. Sending is not
+   * placing -- a captain confirms it at the table first. See order-flow.tsx.
    */
-  placeOrder: () => Promise<CartView | null>;
+  placeOrder: () => Promise<PlaceResult>;
 };
 
 const DrawerContext = createContext<DrawerState | null>(null);
@@ -34,138 +52,148 @@ export function useCartDrawer() {
   return ctx;
 }
 
+/** The order waiting on a captain survives a reload, so the guest isn't left wondering. */
+const ACTIVE_ORDER_KEY = "milli_active_order";
+const POLL_MS = 4000;
+
+function rememberOrder(id: string | null) {
+  try {
+    if (id) window.localStorage.setItem(ACTIVE_ORDER_KEY, id);
+    else window.localStorage.removeItem(ACTIVE_ORDER_KEY);
+  } catch {
+    /* storage disabled: the status just won't survive a reload */
+  }
+}
+
 export function CartDrawerProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setOpen] = useState(false);
-  const [placed, setPlaced] = useState<{ id: number; order: CartView } | null>(null);
-  const { clear } = useCart();
+  const [checkout, setCheckout] = useState<CartView | null>(null);
+  const [active, setActive] = useState<Order | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const resolveCheckout = useRef<((r: PlaceResult) => void) | null>(null);
+  const { apply, addMany } = useCart();
 
-  const placeOrder = useCallback(async () => {
+  // Arriving by the table's QR code (…/menu?table=12) tells us the table.
+  useEffect(() => {
+    const table = tableFromLocation();
+    if (table) setTable(table);
+  }, []);
+
+  // Pick up an order still waiting from before a reload.
+  useEffect(() => {
+    let id: string | null = null;
+    try {
+      id = window.localStorage.getItem(ACTIVE_ORDER_KEY);
+    } catch {
+      /* no storage */
+    }
+    if (!id) return;
+    fetchOrder(id)
+      .then(({ order }) => setActive(order))
+      .catch(() => rememberOrder(null));
+  }, []);
+
+  // Wait for the captain. Polling, not a socket: one small GET every few
+  // seconds while an order is pending, and nothing at all otherwise.
+  const activeId = active?.id;
+  const activePending = active?.status === "pending";
+  useEffect(() => {
+    if (!activeId || !activePending) return;
+    const timer = window.setInterval(async () => {
+      try {
+        const { order } = await fetchOrder(activeId);
+        if (order.status !== "pending") {
+          setActive(order);
+          setExpanded(true);
+          rememberOrder(null);
+        }
+      } catch {
+        /* a blip; the next tick tries again */
+      }
+    }, POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [activeId, activePending]);
+
+  const placeOrder = useCallback(async (): Promise<PlaceResult> => {
     // Asked fresh rather than read from context: the chat can add a dish and
     // order it in the same breath, before the context has caught up.
-    const order = await fetchCart();
-    if (order.totalItems === 0) return null;
-    await clear();
+    const cart = await fetchCart();
+    if (cart.totalItems === 0) return { status: "empty" };
+    resolveCheckout.current?.({ status: "cancelled" });
     setOpen(false);
-    setPlaced({ id: Date.now(), order });
-    return order;
-  }, [clear]);
+    setCheckout(cart);
+    return new Promise<PlaceResult>((resolve) => {
+      resolveCheckout.current = resolve;
+    });
+  }, []);
+
+  function finishCheckout(result: PlaceResult) {
+    setCheckout(null);
+    resolveCheckout.current?.(result);
+    resolveCheckout.current = null;
+  }
+
+  function sent(order: Order) {
+    // The backend emptied the cart as it took the order.
+    apply({ lines: [], count: 0, totalItems: 0, subtotal: 0, complete: true });
+    setActive(order);
+    setExpanded(true);
+    rememberOrder(order.id);
+    finishCheckout({ status: "sent", order });
+  }
+
+  async function cancelActive() {
+    if (!active) return;
+    const { order } = await cancelOrder(active.id);
+    setActive(order);
+    rememberOrder(null);
+  }
+
+  async function putBack() {
+    if (!active) return;
+    await addMany(active.lines.map((l) => ({ itemId: l.itemId, qty: l.qty })));
+    setActive(null);
+    setOpen(true);
+  }
 
   return (
     <DrawerContext.Provider value={{ open: () => setOpen(true), close: () => setOpen(false), placeOrder }}>
       {children}
       <CartDrawer isOpen={isOpen} onClose={() => setOpen(false)} />
-      <OrderToast placed={placed} onDismiss={() => setPlaced(null)} />
+      <CheckoutSheet cart={checkout} onSent={sent} onCancel={() => finishCheckout({ status: "cancelled" })} />
+      <OrderStatusView
+        order={active}
+        expanded={expanded}
+        onExpand={() => setExpanded(true)}
+        onCollapse={() => setExpanded(false)}
+        onDismiss={() => {
+          if (active?.status === "pending") return setExpanded(false);
+          setActive(null);
+          setExpanded(false);
+        }}
+        onCancel={cancelActive}
+        onPutBack={putBack}
+      />
     </DrawerContext.Provider>
   );
 }
 
-const TOAST_MS = 5000;
-
-/** Bottom-right confirmation once an order is placed; dismisses itself. */
-function OrderToast({
-  placed,
-  onDismiss,
-}: {
-  placed: { id: number; order: CartView } | null;
-  onDismiss: () => void;
-}) {
-  useEffect(() => {
-    if (!placed) return;
-    const timer = window.setTimeout(onDismiss, TOAST_MS);
-    return () => window.clearTimeout(timer);
-  }, [placed, onDismiss]);
-
-  const order = placed?.order;
-  const names = order?.lines.map((l) => (l.qty > 1 ? `${l.qty}× ${l.item.name}` : l.item.name)) ?? [];
-
-  return (
-    <div className="pointer-events-none fixed inset-x-4 bottom-4 z-[80] flex justify-end sm:inset-x-auto sm:right-6 sm:bottom-6">
-      <AnimatePresence>
-        {placed && order && (
-          <motion.div
-            key={placed.id}
-            role="status"
-            aria-live="polite"
-            initial={{ opacity: 0, y: 24, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 40, transition: { duration: 0.2 } }}
-            transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            className="pointer-events-auto relative w-full overflow-hidden rounded-2xl border border-ink/[0.08] bg-cream shadow-[0_18px_48px_rgba(28,20,15,0.22)] sm:w-[360px]"
-          >
-            <div className="flex gap-3.5 p-4 pr-10">
-              <motion.span
-                initial={{ scale: 0.4, rotate: -30 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: "spring", stiffness: 420, damping: 16, delay: 0.08 }}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-basil text-cream shadow-[0_6px_14px_rgba(26,122,86,0.35)]"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path d="m5 12.5 4.5 4.5L19 7.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </motion.span>
-              <div className="min-w-0 flex-1">
-                <p className="font-display text-[17px] leading-tight text-ink">Order placed</p>
-                <p className="mt-1 text-[12.5px] text-ink/60 tabular-nums">
-                  {order.totalItems} item{order.totalItems === 1 ? "" : "s"}
-                  {order.subtotal != null && ` · ₹${Math.round(order.subtotal).toLocaleString("en-IN")}`}
-                  {" — the kitchen has it."}
-                </p>
-                <p className="mt-1.5 truncate text-[12px] text-ink/45">{names.join(", ")}</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onDismiss}
-              aria-label="Dismiss"
-              className="absolute top-3 right-3 rounded-full p-1 text-ink/35 transition-colors hover:bg-ink/5 hover:text-ink"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </button>
-            {/* time left before it goes */}
-            <motion.span
-              aria-hidden
-              initial={{ scaleX: 1 }}
-              animate={{ scaleX: 0 }}
-              transition={{ duration: TOAST_MS / 1000, ease: "linear" }}
-              className="absolute inset-x-0 bottom-0 h-[3px] origin-left bg-basil/70"
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/** "Order now", shared by the drawer and the menu page's order panel. */
+/** "Order now", shared by the drawer and the menu page's order panel. Opens the checkout. */
 export function OrderNowButton({ className = "" }: { className?: string }) {
   const { placeOrder } = useCartDrawer();
   const { busy } = useCart();
-  const [placing, setPlacing] = useState(false);
-
-  async function handleClick() {
-    setPlacing(true);
-    try {
-      await placeOrder();
-    } finally {
-      setPlacing(false);
-    }
-  }
 
   return (
     <button
       type="button"
-      onClick={handleClick}
-      disabled={busy || placing}
+      onClick={() => void placeOrder()}
+      disabled={busy}
       className={`inline-flex items-center justify-center gap-2 text-[14px] transition-[opacity,background-color] disabled:opacity-60 ${className}`}
     >
-      {placing ? "Placing order…" : "Order now"}
-      {!placing && (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      )}
+      Order now
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
     </button>
   );
 }

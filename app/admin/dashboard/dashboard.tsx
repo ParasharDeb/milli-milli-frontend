@@ -7,6 +7,7 @@ import { motion } from "motion/react";
 import { getAdminToken, signOut } from "@/app/lib/auth";
 import { useAdmin } from "@/app/lib/use-auth";
 import { fetchStats, type MenuStats } from "@/app/lib/menu-api";
+import { OrdersPanel } from "./orders-panel";
 import { ReviewsPanel } from "./reviews-panel";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
@@ -123,6 +124,9 @@ export function Dashboard() {
             </div>
           </div>
         </motion.div>
+
+        {/* Orders waiting on a captain come first: they are the only thing here a guest is waiting on. */}
+        <OrdersPanel token={getAdminToken()} onSignedOut={handleSignOut} />
 
         {/* stats */}
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

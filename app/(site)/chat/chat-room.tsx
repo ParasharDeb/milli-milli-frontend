@@ -667,29 +667,35 @@ export function ChatRoom() {
   }
 
   async function announceOrder() {
-    const order = await placeOrder();
-    if (!order) {
+    const result = await placeOrder();
+    if (result.status === "empty") {
       say(
         "There's nothing in your order yet. Tell me what you'd like — say **add paneer tikka**, or ask for a suggestion — and I'll place it.",
         ["Suggest something", VIEW_MENU],
       );
       return;
     }
+    if (result.status === "cancelled") {
+      say("No problem — your order is still here whenever you're ready.", ["Place my order", "Something to drink?"]);
+      return;
+    }
 
+    const { order } = result;
     const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
     const lines = order.lines.map(
-      (l) => `• ${l.qty > 1 ? `${l.qty}× ` : ""}${l.item.name}${l.lineTotal != null ? ` — ${rupees(l.lineTotal)}` : ""}`,
+      (l) => `• ${l.qty > 1 ? `${l.qty}× ` : ""}${l.name}${l.lineTotal != null ? ` — ${rupees(l.lineTotal)}` : ""}`,
     );
     const total = order.subtotal != null ? `\n\n**Total: ${rupees(order.subtotal)}**` : "";
-    say(`Done — your order is placed. 🎉\n\n${lines.join("\n")}${total}\n\nThe kitchen has it. Anything else?`, [
-      "Something to drink?",
-      "Dessert ideas",
-    ]);
+    const where = order.tableNumber ? ` at **table ${order.tableNumber}**` : "";
+    say(
+      `Sent! 🛎️ Our captain will be at your table${where} shortly to confirm your order (**${order.code}**).\n\n${lines.join("\n")}${total}\n\nThe kitchen starts as soon as they confirm. Anything else meanwhile?`,
+      ["Something to drink?", "Dessert ideas"],
+    );
   }
 
   function orderFailed(error: unknown) {
     console.error("[chat] placing the order failed:", error);
-    say("I couldn't place the order just now — the kitchen isn't answering. Try again in a moment?", [
+    say("I couldn't send the order just now — the floor isn't answering. Try again in a moment?", [
       "Place my order",
     ]);
   }
