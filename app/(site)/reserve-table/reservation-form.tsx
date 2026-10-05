@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { createReservation } from "@/app/lib/menu-api";
 import { DatePicker } from "@/app/components/date-picker";
 
 const TIMES = ["18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00"];
@@ -23,6 +24,10 @@ function longDate(iso: string) {
 
 const field =
   "w-full appearance-none rounded-lg border border-line bg-[#fbf8f3] py-3.5 pr-10 pl-11 text-[13.5px] text-ink transition-colors hover:border-ink/30 focus:border-ember focus:outline-none";
+
+/** Plain text fields: no icon on the left, no chevron on the right. */
+const textField =
+  "mt-2 w-full rounded-lg border border-line bg-[#fbf8f3] px-4 py-3.5 text-[13.5px] text-ink transition-colors placeholder:text-ink/40 hover:border-ink/30 focus:border-ember focus:outline-none";
 
 function Glyph({ children }: { children: ReactNode }) {
   return (
@@ -106,26 +111,55 @@ function SelectField({
   );
 }
 
-/**
- * There is no reservations service behind this yet, so a request is only
- * acknowledged on the page. Wire `onSubmit` to the booking API once it exists.
- */
 export function ReservationForm({ defaults }: { defaults: ReservationDefaults }) {
   const min = isoToday();
   const [date, setDate] = useState(() => (defaults.date && defaults.date >= min ? defaults.date : min));
   const [time, setTime] = useState(defaults.time && TIMES.includes(defaults.time) ? defaults.time : "20:30");
   const [guests, setGuests] = useState(defaults.guests && GUESTS.includes(defaults.guests) ? defaults.guests : 2);
   const [seating, setSeating] = useState("Any");
-  const [sent, setSent] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  /** Any edit after a sent request starts a new one. */
+  const edited = () => {
+    setError(null);
+    setSuccess(false);
+  };
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!guestName.trim() || !phone.trim()) {
+      setError("Please enter your name and phone number");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await createReservation({
+        date,
+        time,
+        guests,
+        guestName: guestName.trim(),
+        phone: phone.trim(),
+        seating: seating !== "Any" ? seating : undefined,
+        note: note.trim() || undefined,
+      });
+      setSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        setSent(true);
-      }}
-      className="mt-9"
-    >
+    <form onSubmit={handleSubmit} className="mt-9">
       <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
         <div>
           <span className="text-[13px] text-ink/85">Date</span>
@@ -134,14 +168,14 @@ export function ReservationForm({ defaults }: { defaults: ReservationDefaults })
             min={min}
             onChange={(v) => {
               setDate(v);
-              setSent(false);
+              edited();
             }}
             tone="light"
             icon={ICONS.date}
             className="w-full rounded-lg border border-line bg-[#fbf8f3] px-4 py-3.5 text-[13.5px] text-ink transition-colors hover:border-ink/30 focus:border-ember focus:outline-none"
           />
         </div>
-        <SelectField label="Time" icon={ICONS.time} value={time} onChange={(v) => (setTime(v), setSent(false))}>
+        <SelectField label="Time" icon={ICONS.time} value={time} onChange={(v) => (setTime(v), edited())}>
           {TIMES.map((t) => (
             <option key={t} value={t}>
               {t}
@@ -152,7 +186,7 @@ export function ReservationForm({ defaults }: { defaults: ReservationDefaults })
           label="Guests"
           icon={ICONS.guests}
           value={guests}
-          onChange={(v) => (setGuests(Number(v)), setSent(false))}
+          onChange={(v) => (setGuests(Number(v)), edited())}
         >
           {GUESTS.map((g) => (
             <option key={g} value={g}>
@@ -164,7 +198,7 @@ export function ReservationForm({ defaults }: { defaults: ReservationDefaults })
           label="Seating preference (optional)"
           icon={ICONS.seating}
           value={seating}
-          onChange={(v) => (setSeating(v), setSent(false))}
+          onChange={(v) => (setSeating(v), edited())}
         >
           {SEATING.map((s) => (
             <option key={s} value={s}>
@@ -172,18 +206,77 @@ export function ReservationForm({ defaults }: { defaults: ReservationDefaults })
             </option>
           ))}
         </SelectField>
+
+        <label className="block">
+          <span className="text-[13px] text-ink/85">Name</span>
+          <input
+            type="text"
+            value={guestName}
+            onChange={(e) => {
+              setGuestName(e.target.value);
+              edited();
+            }}
+            placeholder="Your name"
+            maxLength={60}
+            required
+            className={textField}
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-[13px] text-ink/85">Phone number</span>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => {
+              setPhone(e.target.value);
+              edited();
+            }}
+            placeholder="10-digit mobile"
+            required
+            className={textField}
+          />
+        </label>
+
+        <label className="col-span-full block">
+          <span className="text-[13px] text-ink/85">Special requests (optional)</span>
+          <textarea
+            value={note}
+            onChange={(e) => {
+              setNote(e.target.value);
+              edited();
+            }}
+            placeholder="Celebration, seating near window, etc."
+            maxLength={300}
+            rows={2}
+            className={`${textField} resize-none`}
+          />
+        </label>
       </div>
+
+      {error && (
+        <motion.p
+          key="error"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="mt-5 rounded-lg border border-ember/30 bg-ember/8 px-4 py-3 text-[13px] text-ember"
+        >
+          {error}
+        </motion.p>
+      )}
 
       <button
         type="submit"
-        className="group mt-8 flex w-full items-center justify-center gap-2 rounded-full bg-ink px-8 py-4 text-[14px] font-medium text-cream transition-colors hover:bg-ember"
+        disabled={loading || success}
+        className="group mt-8 flex w-full items-center justify-center gap-2 rounded-full bg-ink px-8 py-4 text-[14px] font-medium text-cream transition-colors hover:bg-ember disabled:opacity-50"
       >
-        Check availability
-        <span className="transition-transform group-hover:translate-x-1">→</span>
+        {loading ? "Checking…" : success ? "✓ Request sent" : "Check availability"}
+        {!loading && !success && <span className="transition-transform group-hover:translate-x-1">→</span>}
       </button>
 
       <AnimatePresence mode="wait" initial={false}>
-        {sent ? (
+        {success ? (
           <motion.p
             key="sent"
             initial={{ opacity: 0, y: 6 }}
@@ -192,8 +285,8 @@ export function ReservationForm({ defaults }: { defaults: ReservationDefaults })
             role="status"
             className="mt-5 rounded-lg border border-basil/25 bg-basil/8 px-4 py-3 text-[13px] text-basil"
           >
-            Request noted: {longDate(date)} at {time}, {guests} {guests === 1 ? "guest" : "guests"}
-            {seating !== "Any" ? `, ${seating.toLowerCase()} seating` : ""}.
+            <span className="font-medium">Request sent.</span> {longDate(date)} at {time}, {guests}{" "}
+            {guests === 1 ? "guest" : "guests"}. The desk will confirm on {phone} shortly.
           </motion.p>
         ) : (
           <motion.p

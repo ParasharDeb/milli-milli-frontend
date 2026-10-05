@@ -1,0 +1,305 @@
+/*
+ * The shared navbar. Same two colours as the landing page: charcoal and
+ * stone cream. Desktop measurements are in 1440-wide artboard pixels (--u),
+ * matching the landing page, so the bar sits identically on every page.
+ */
+
+.sn {
+  --charcoal: #0d0809;
+  --cream: #e8e1d5;
+  --u: calc(min(100vw, 1920px) / 1440);
+  --h: 76px;
+
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--h);
+  padding: 0 20px;
+  color: var(--cream);
+  font-family: var(--font-mm-ui), "Manrope", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition:
+    height 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.35s ease,
+    border-color 0.35s ease;
+  border-bottom: 1px solid transparent;
+}
+
+.sn[data-lifted],
+.sn[data-open] {
+  background: var(--charcoal);
+  border-bottom-color: rgb(232 225 213 / 0.12);
+}
+
+:where(.sn) a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:where(.sn) button {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sn :focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: 4px;
+}
+
+:where(.sn) ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ── wordmark (shared with the landing page footer) ── */
+
+.mm-wordmark {
+  display: inline-block;
+  width: calc(3.85em * 0.66);
+  font-family: var(--font-mm-display), "Cormorant Garamond", Georgia, serif;
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.mm-wordmark__set {
+  display: inline-block;
+  letter-spacing: -0.005em;
+  transform: scaleX(0.66);
+  transform-origin: left center;
+}
+
+.sn__logo {
+  position: relative;
+  z-index: 2;
+  display: block;
+}
+
+.sn__logo .mm-wordmark {
+  font-size: 38px;
+  transition: font-size 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── links ── */
+
+.sn__nav {
+  display: none;
+}
+
+.sn__nav a {
+  position: relative;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.sn__nav a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0.15em;
+  bottom: -8px;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sn__nav a:hover::after,
+.sn__nav a[aria-current="page"]::after {
+  transform: scaleX(1);
+}
+
+/* ── actions ── */
+
+.sn__actions {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sn__cart {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+}
+
+.sn__cart svg {
+  width: 20px;
+  height: 20px;
+}
+
+.sn__badge {
+  position: absolute;
+  top: 3px;
+  right: 1px;
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--cream);
+  color: var(--charcoal);
+  font-size: 9.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sn__account {
+  display: none;
+}
+
+.sn__toggle {
+  padding: 10px 0 10px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+/* ── mobile sheet ── */
+
+.sn__sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 48px;
+  padding: 96px 20px 48px;
+  background: var(--charcoal);
+}
+
+.sn__sheet[hidden] {
+  display: none;
+}
+
+.sn__sheet li {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  padding-block: 14px;
+  border-bottom: 1px solid rgb(232 225 213 / 0.18);
+}
+
+.sn__num {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  opacity: 0.6;
+}
+
+.sn__sheet a {
+  font-family: var(--font-mm-display), "Cormorant Garamond", Georgia, serif;
+  font-size: 40px;
+  line-height: 1;
+}
+
+.sn__sheet-account {
+  align-self: flex-start;
+  padding: 18px 26px;
+  border: 1px solid var(--cream);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* ── desktop: same positions as the landing page artboard ── */
+
+@media (min-width: 900px) {
+  .sn {
+    --h: calc(144 * var(--u));
+    padding: 0 calc(65 * var(--u)) 0 calc(86 * var(--u));
+  }
+
+  .sn[data-lifted] {
+    --h: max(64px, calc(84 * var(--u)));
+  }
+
+  .sn__logo .mm-wordmark {
+    font-size: calc(66 * var(--u));
+  }
+
+  .sn[data-lifted] .sn__logo .mm-wordmark {
+    font-size: calc(48 * var(--u));
+  }
+
+  .sn__nav {
+    display: block;
+    position: absolute;
+    left: calc(456 * var(--u));
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .sn__nav ul {
+    display: flex;
+    gap: calc(46 * var(--u));
+  }
+
+  .sn__nav a {
+    font-size: max(9px, calc(12 * var(--u)));
+  }
+
+  .sn__actions {
+    gap: calc(18 * var(--u));
+  }
+
+  .sn__account {
+    display: grid;
+    place-items: center;
+    width: calc(166 * var(--u));
+    height: calc(54 * var(--u));
+    border: 1px solid var(--cream);
+    font-size: max(9px, calc(12.5 * var(--u)));
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    line-height: 1;
+    text-transform: uppercase;
+    transition:
+      background-color 0.3s,
+      color 0.3s;
+  }
+
+  .sn__account:hover {
+    background: var(--cream);
+    color: var(--charcoal);
+  }
+
+  .sn[data-lifted] .sn__account {
+    height: calc(46 * var(--u));
+  }
+
+  .sn__toggle,
+  .sn__sheet {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sn,
+  .sn__logo .mm-wordmark,
+  .sn__nav a::after {
+    transition: none;
+  }
+}

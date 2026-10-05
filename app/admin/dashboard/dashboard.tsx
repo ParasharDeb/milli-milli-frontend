@@ -7,7 +7,10 @@ import { motion } from "motion/react";
 import { getAdminToken, signOut } from "@/app/lib/auth";
 import { useAdmin } from "@/app/lib/use-auth";
 import { fetchStats, type MenuStats } from "@/app/lib/menu-api";
+import { useAdminStream } from "@/app/lib/use-admin-stream";
+import { LiveToasts } from "./live-toasts";
 import { OrdersPanel } from "./orders-panel";
+import { ReservationsPanel } from "./reservations-panel";
 import { ReviewsPanel } from "./reviews-panel";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
@@ -50,6 +53,9 @@ export function Dashboard() {
   const admin = useAdmin();
   const [stats, setStats] = useState<MenuStats | null>(null);
   const [statsFailed, setStatsFailed] = useState(false);
+  const token = admin ? getAdminToken() : null;
+  // One live connection, shared by the panels and the new-arrival toasts.
+  const stream = useAdminStream(token);
 
   // Live menu composition, straight from Postgres via the backend.
   useEffect(() => {
@@ -76,6 +82,7 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-parchment">
+      <LiveToasts subscribe={stream.subscribe} />
       {/* top bar */}
       <header className="sticky top-0 z-30 border-b border-line bg-cream/90 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1400px] flex-wrap items-center justify-between gap-4 px-6 py-4 md:px-10">
@@ -92,6 +99,13 @@ export function Dashboard() {
           </div>
 
           <div className="flex items-center gap-4">
+            <span
+              title={stream.connected ? "New orders and reservations appear as they arrive" : "Reconnecting…"}
+              className="flex items-center gap-1.5 text-[12.5px] text-muted"
+            >
+              <span className={`h-2 w-2 rounded-full ${stream.connected ? "bg-basil" : "bg-line"}`} />
+              {stream.connected ? "Live" : "Offline"}
+            </span>
             <span className="hidden text-[13px] text-muted sm:block">{admin}</span>
             <button
               type="button"
@@ -126,7 +140,10 @@ export function Dashboard() {
         </motion.div>
 
         {/* Orders waiting on a captain come first: they are the only thing here a guest is waiting on. */}
-        <OrdersPanel token={getAdminToken()} onSignedOut={handleSignOut} />
+        <OrdersPanel token={token} subscribe={stream.subscribe} onSignedOut={handleSignOut} />
+
+        {/* Reservations from chat and the booking form. */}
+        <ReservationsPanel token={token} subscribe={stream.subscribe} onSignedOut={handleSignOut} />
 
         {/* stats */}
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

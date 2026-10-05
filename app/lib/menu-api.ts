@@ -183,7 +183,9 @@ export type ChatResponse =
       meta: ChatMeta;
     };
 
-type ApiError = { error: { code: string; message: string } };
+type ApiError = {
+  error: { code: string; message: string; details?: { path: string; message: string }[] };
+};
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const sessionId = getSessionId();
@@ -199,8 +201,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const body = await res.json().catch(() => null);
 
   if (!res.ok) {
-    const message =
-      (body as ApiError | null)?.error?.message ?? `Request failed (${res.status})`;
+    // A validation failure says which field and why; show that, not the summary.
+    const error = (body as ApiError | null)?.error;
+    const message = error?.details?.[0]?.message ?? error?.message ?? `Request failed (${res.status})`;
     throw new Error(message);
   }
   return body as T;
@@ -435,4 +438,78 @@ export async function fetchReviews(token: string): Promise<ReviewsResponse> {
   if (res.status === 401 || res.status === 403) throw new StaffAuthError("Signed out");
   if (!res.ok) throw new Error(`Request failed (${res.status})`);
   return res.json() as Promise<ReviewsResponse>;
+}
+
+/* ----------------------------------------------------- reservations -- */
+
+export type StaffReservation = {
+  id: string;
+  code: string;
+  source: "chat" | "form";
+  status: "pending" | "accepted" | "rejected" | "cancelled";
+  guestName: string | null;
+  phone: string | null;
+  dateText: string;
+  timeText: string;
+  partySize: number;
+  seating: string | null;
+  note: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  rejectReason: string | null;
+  createdAt: string;
+};
+
+export type StaffReservationsResponse = {
+  counts: Record<"pending" | "accepted" | "rejected" | "cancelled", number>;
+  reservations: StaffReservation[];
+};
+
+export type ReservationRequest = {
+  date: string;
+  time: string;
+  guests: number;
+  guestName: string;
+  phone: string;
+  seating?: string;
+  note?: string;
+};
+
+/** The public booking form. The desk confirms it from the dashboard. */
+export async function createReservation(input: ReservationRequest): Promise<StaffReservation> {
+  const { reservation } = await request<{ reservation: StaffReservation }>("/api/reservations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return reservation;
+}
+
+/** Staff-only. Pending and recent reservations, newest first. */
+export async function fetchStaffReservations(token: string): Promise<StaffReservationsResponse> {
+  const res = await fetch("/api/admin/reservations", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (res.status === 401 || res.status === 403) throw new StaffAuthError("Signed out");
+  if (!res.ok) throw new Error(`Request failed (${res.status})`);
+  return res.json() as Promise<StaffReservationsResponse>;
+}
+
+/** Staff-only. Accept or reject a pending reservation. */
+export async function decideReservation(
+  token: string,
+  id: string,
+  status: "accepted" | "rejected",
+  reason?: string,
+): Promise<StaffReservation> {
+  const res = await fetch(`/api/admin/reservations/${id}/decision`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ status, ...(reason ? { reason } : {}) }),
+  });
+  if (res.status === 401 || res.status === 403) throw new StaffAuthError("Signed out");
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((body as ApiError | null)?.error?.message ?? `Request failed (${res.status})`);
+  return (body as { reservation: StaffReservation }).reservation;
 }

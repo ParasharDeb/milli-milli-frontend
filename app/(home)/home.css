@@ -1,0 +1,1306 @@
+/*
+ * Milli Milli — landing page.
+ *
+ * Two colours only. Photographs keep their own colour; every rule, label,
+ * border and surface here is charcoal or stone cream (or one of them at
+ * reduced opacity).
+ *
+ * Desktop (>= 900px) is laid out on a 1440-wide artboard: every measurement
+ * is N * var(--u), where --u is one artboard pixel at the current width, so
+ * the composition — overlaps, offsets, tilts — holds its proportions as the
+ * window changes. Below 900px the sections fall back to flowing layouts that
+ * keep the overlaps.
+ */
+
+.mm {
+  --charcoal: #0d0809;
+  --cream: #e8e1d5;
+
+  --f-display: var(--font-mm-display), "Cormorant Garamond", Georgia, serif;
+  --f-ui: var(--font-mm-ui), "Manrope", system-ui, sans-serif;
+  --f-hand: var(--font-mm-hand), "Nothing You Could Do", cursive;
+
+  /* One artboard pixel. Capped so very wide screens don't balloon. */
+  --u: calc(min(100cqw, 1920px) / 1440);
+  --gutter: 20px;
+
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .05 0 0 0 0 .03 0 0 0 0 .035 0 0 0 1 -.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --paper-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .04' numOctaves='4' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 .05 0 0 0 0 .03 0 0 0 0 .035 0 0 0 .5 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+
+  container-type: inline-size;
+  flex: 1;
+  width: 100%;
+  overflow-x: clip;
+  background: var(--charcoal);
+  color: var(--cream);
+  font-family: var(--f-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.mm *,
+.mm *::before,
+.mm *::after {
+  box-sizing: border-box;
+}
+
+.mm ::selection {
+  background: var(--cream);
+  color: var(--charcoal);
+}
+
+.mm a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.mm :focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: 4px;
+}
+
+.mm-desk {
+  display: none;
+}
+
+/* ───────────────────────── type ───────────────────────── */
+
+/* Small caps-style labels: uppercase, airy, restrained weight */
+.mm-label {
+  margin: 0;
+  font-family: var(--f-ui);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.75;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* The tiniest labels: category lists, footer */
+.mm-micro {
+  font-family: var(--f-ui);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.mm-display {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: 400;
+  letter-spacing: -0.012em;
+  font-feature-settings: "kern", "liga", "dlig";
+}
+
+.mm-display em {
+  font-style: italic;
+  letter-spacing: -0.02em;
+}
+
+.mm-h2 {
+  font-size: clamp(40px, 11vw, 52px);
+  line-height: 1.02;
+}
+
+.mm-copy {
+  margin: 0;
+  font-family: var(--f-display);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.mm-note {
+  position: relative;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  font-family: var(--f-hand);
+  font-size: 22px;
+  line-height: 1.12;
+  transform-origin: left center;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.mm-note__stroke {
+  width: 78%;
+  height: auto;
+  margin-top: 0.1em;
+  margin-left: 6%;
+  opacity: 0.85;
+}
+
+.mm-rule {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid currentColor;
+  opacity: 0.6;
+}
+
+/* ───────────────────────── call to action ───────────────────────── */
+
+.mm-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 22px;
+  font-family: var(--f-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.mm-cta__label {
+  padding-block: 6px;
+}
+
+.mm-cta--rule .mm-cta__label {
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 9px;
+}
+
+.mm-arrow {
+  width: 58px;
+  height: 10px;
+  flex: none;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mm-arrow--short {
+  width: 20px;
+}
+
+.mm-cta:hover .mm-arrow,
+.mm-event:hover .mm-arrow {
+  transform: translateX(6px);
+}
+
+/* ───────────────────────── surfaces ───────────────────────── */
+
+.mm-paper {
+  background-color: var(--cream);
+  color: var(--charcoal);
+  isolation: isolate;
+}
+
+/* Paper tooth + a faint long fibre, so the cream reads as stock, not a fill */
+.mm-paper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--noise), var(--paper-fibre);
+  background-size: 240px 240px, 600px 600px;
+  opacity: 0.22;
+}
+
+/* Film grain over photographic sections */
+.mm-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--noise);
+  background-size: 240px 240px;
+  opacity: 0.18;
+  mix-blend-mode: multiply;
+}
+
+/* A photograph laid down like a print */
+.mm-print {
+  position: absolute;
+  margin: 0;
+  overflow: hidden;
+  background: var(--charcoal);
+}
+
+.mm-print img {
+  object-fit: cover;
+}
+
+/* ═════════════════════════ 1. HERO ═════════════════════════ */
+
+.mm-hero {
+  position: relative;
+  height: 100svh;
+  min-height: 620px;
+  max-height: 900px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.mm-hero__media {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+}
+
+.mm-hero__media img {
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 1.4s ease;
+}
+
+.mm-hero__media img[data-active] {
+  opacity: 1;
+}
+
+.mm-hero__shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgb(13 8 9 / 0.58);
+}
+
+.mm-hero__copy {
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  bottom: 88px;
+}
+
+.mm-hero__title {
+  margin-top: 18px;
+  font-size: clamp(54px, 15vw, 76px);
+  line-height: 0.95;
+  font-weight: 400;
+}
+
+.mm-hero__rule {
+  width: 64px;
+  margin-top: 34px;
+  margin-bottom: 26px;
+}
+
+.mm-hero__count {
+  position: absolute;
+  left: var(--gutter);
+  bottom: 32px;
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mm-hero__count button {
+  padding: 6px 6px 6px 0;
+  border: 0;
+  background: none;
+  color: var(--cream);
+  font: 500 10px/1 var(--f-ui);
+  letter-spacing: 0.16em;
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.mm-hero__count button[aria-current],
+.mm-hero__count button:hover {
+  opacity: 1;
+}
+
+/* ═════════════════════════ 2. THE TABLE ═════════════════════════ */
+
+.mm-table {
+  --slant: 44px;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  margin-top: -10px;
+  padding: 56px var(--gutter) calc(var(--slant) + 64px);
+  clip-path: polygon(
+    0 6px, 7% 2px, 15% 7px, 26% 3px, 38% 8px, 47% 3px, 58% 6px, 66% 1px, 77% 7px, 86% 2px, 94% 5px, 100% 1px,
+    100% calc(100% - var(--slant)), 0 100%
+  );
+}
+
+.mm-table__media {
+  position: relative;
+  height: 118vw;
+  max-height: 640px;
+}
+
+.mm-table__plate {
+  inset: 0 14% 12% 0;
+  transform: rotate(-1.2deg);
+  box-shadow: 0 10px 30px rgb(13 8 9 / 0.22);
+}
+
+.mm-table__glass {
+  right: 0;
+  bottom: 0;
+  width: 52%;
+  aspect-ratio: 354 / 296;
+  transform: rotate(-6deg);
+  outline: 1px solid rgb(232 225 213 / 0.5);
+  box-shadow: 0 14px 30px rgb(13 8 9 / 0.35);
+}
+
+.mm-table__note {
+  position: absolute;
+  right: 6%;
+  bottom: -46px;
+  font-size: 26px;
+  transform: rotate(-14deg);
+}
+
+.mm-table__text {
+  margin-top: 20px;
+}
+
+.mm-table__text .mm-h2 {
+  margin-top: 14px;
+}
+
+.mm-table__body {
+  margin-top: 26px;
+}
+
+.mm-table__body .mm-copy {
+  max-width: 34ch;
+  margin-bottom: 32px;
+}
+
+.mm-table__cats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+  margin: 0;
+  padding: 18px 0 0;
+  list-style: none;
+  border-top: 1px solid rgb(13 8 9 / 0.2);
+}
+
+/* ═════════════════════════ 3. THE ROOM ═════════════════════════ */
+
+.mm-room {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  padding: 40px var(--gutter) 96px;
+}
+
+.mm-room .mm-h2 {
+  margin-top: 14px;
+}
+
+.mm-room .mm-copy {
+  margin-top: 22px;
+  margin-bottom: 30px;
+  max-width: 32ch;
+  opacity: 0.92;
+}
+
+.mm-room__media {
+  position: relative;
+  height: 96vw;
+  max-height: 560px;
+  margin-right: calc(-1 * var(--gutter));
+}
+
+.mm-room__main {
+  inset: 12% 12% 0 0;
+}
+
+.mm-room__inset {
+  top: 0;
+  right: var(--gutter);
+  width: 44%;
+  aspect-ratio: 309 / 263;
+  outline: 1px solid rgb(232 225 213 / 0.35);
+  outline-offset: -1px;
+  box-shadow: 0 16px 34px rgb(13 8 9 / 0.5);
+}
+
+.mm-room__note {
+  position: absolute;
+  right: calc(var(--gutter) - 4px);
+  bottom: -64px;
+  font-size: 22px;
+  transform: rotate(-12deg);
+}
+
+/* ═════════════════════════ 4. EVENING TIMELINE ═════════════════════════ */
+
+.mm-evening {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 420px;
+  padding: 72px 12px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.mm-evening__photo {
+  z-index: -2;
+  object-fit: cover;
+  filter: blur(3px) saturate(0.9);
+  transform: scale(1.05);
+}
+
+.mm-evening__shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgb(13 8 9 / 0.62);
+}
+
+.mm-evening__inner {
+  width: 100%;
+  max-width: 560px;
+}
+
+.mm-evening__title {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.3em;
+}
+
+.mm-evening__line {
+  --dot: 11px;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 44px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The hairline the four moments hang on, with a tick between each pair */
+.mm-evening__line::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--dot) / 2);
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgb(232 225 213 / 0.7);
+}
+
+.mm-evening__line li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.mm-evening__line li + li::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--dot) / 2 - 2px);
+  left: 0;
+  width: 1px;
+  height: 5px;
+  background: rgb(232 225 213 / 0.7);
+}
+
+.mm-evening__dot {
+  position: relative;
+  width: var(--dot);
+  height: var(--dot);
+  border: 1px solid var(--cream);
+  border-radius: 50%;
+  background: var(--charcoal);
+}
+
+.mm-evening__time,
+.mm-evening__what {
+  font-family: var(--f-ui);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.mm-evening__time {
+  margin-top: 16px;
+}
+
+.mm-evening__what {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ═════════════════════════ 5. WHAT'S ON ═════════════════════════ */
+
+.mm-on {
+  --wave: 26px;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  margin-top: -8px;
+  padding: 60px var(--gutter) calc(var(--wave) + 56px);
+  clip-path: polygon(
+    0 4px, 9% 1px, 20% 6px, 33% 2px, 45% 5px, 57% 0, 70% 5px, 82% 2px, 92% 6px, 100% 2px,
+    100% calc(100% - var(--wave)), 92% calc(100% - var(--wave) * 0.8), 84% calc(100% - var(--wave) * 0.45),
+    70% calc(100% - var(--wave) * 0.15), 55% calc(100% - var(--wave) * 0.4), 40% calc(100% - var(--wave) * 0.55),
+    26% calc(100% - var(--wave) * 0.25), 12% 100%, 0 calc(100% - var(--wave) * 0.2)
+  );
+}
+
+.mm-on .mm-h2 {
+  margin-top: 14px;
+  margin-bottom: 30px;
+}
+
+.mm-on__media {
+  position: relative;
+  height: 330px;
+  margin-inline: 4%;
+}
+
+.mm-on__one {
+  top: 0;
+  left: 6%;
+  width: 54%;
+  aspect-ratio: 218 / 205;
+  transform: rotate(7deg);
+  box-shadow: 0 12px 26px rgb(13 8 9 / 0.3);
+}
+
+.mm-on__two {
+  top: 38%;
+  left: 36%;
+  width: 54%;
+  aspect-ratio: 216 / 165;
+  transform: rotate(4deg);
+  filter: grayscale(1) contrast(1.08) brightness(0.9);
+  outline: 1px solid rgb(232 225 213 / 0.6);
+  outline-offset: -1px;
+  box-shadow: 0 14px 28px rgb(13 8 9 / 0.35);
+}
+
+.mm-on__note {
+  position: absolute;
+  left: 0;
+  bottom: -18px;
+  font-size: 19px;
+  transform: rotate(-13deg);
+}
+
+.mm-on__events {
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mm-on__events li + li {
+  border-top: 1px solid rgb(13 8 9 / 0.22);
+}
+
+.mm-event {
+  display: grid;
+  grid-template-columns: 76px 1fr auto;
+  align-items: center;
+  padding-block: 22px;
+  font-family: var(--f-ui);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  line-height: 1.7;
+  text-transform: uppercase;
+}
+
+.mm-on__events li:last-child {
+  border-bottom: 1px solid rgb(13 8 9 / 0.22);
+}
+
+.mm-event__when,
+.mm-event__what {
+  display: flex;
+  flex-direction: column;
+}
+
+.mm-event b {
+  font-weight: 700;
+}
+
+.mm-event span span {
+  font-weight: 400;
+}
+
+/* ═════════════════════════ 6. RESERVATION ═════════════════════════ */
+
+.mm-reserve {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 72px;
+  margin-top: -40px;
+  padding: 104px var(--gutter) 72px;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.mm-reserve__photo {
+  z-index: -2;
+  object-fit: cover;
+  /* Let the table fall away into the footer's charcoal */
+  mask-image: linear-gradient(#000 70%, transparent);
+}
+
+.mm-reserve__shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgb(13 8 9 / 0.55);
+}
+
+.mm-reserve__title {
+  margin-top: 14px;
+  font-size: clamp(42px, 11.4vw, 56px);
+  line-height: 1.02;
+}
+
+.mm-reserve__note {
+  margin-top: 26px;
+  margin-left: 18%;
+  font-size: 22px;
+  transform: rotate(-14deg);
+}
+
+/* The form is a set of hairlines on the photograph, not a panel */
+.mm-form {
+  display: flex;
+  flex-direction: column;
+  padding: 28px 26px 30px;
+  border: 1px solid rgb(232 225 213 / 0.45);
+  background: rgb(13 8 9 / 0.22);
+  backdrop-filter: blur(2px);
+}
+
+.mm-form__title {
+  margin-bottom: 18px;
+  font-size: 10.5px;
+  letter-spacing: 0.24em;
+}
+
+.mm-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 58px;
+  border-bottom: 1px solid rgb(232 225 213 / 0.45);
+  cursor: pointer;
+}
+
+.mm-field__name {
+  font: 600 10px/1 var(--f-ui);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.mm-field input,
+.mm-field select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  padding: 0 26px 0 40%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--cream);
+  color-scheme: dark;
+  font: 500 12px/1 var(--f-ui);
+  letter-spacing: 0.1em;
+  text-align: right;
+  text-align-last: right;
+  appearance: none;
+  cursor: pointer;
+}
+
+.mm-field input:invalid,
+.mm-field select:invalid {
+  color: transparent;
+}
+
+.mm-field input:focus-visible,
+.mm-field select:focus-visible {
+  outline: none;
+}
+
+.mm-field:focus-within {
+  border-bottom-color: var(--cream);
+}
+
+.mm-field option {
+  background: var(--charcoal);
+  color: var(--cream);
+}
+
+/* The whole row opens the date picker */
+.mm-field input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.mm-field input::-webkit-datetime-edit {
+  padding: 0;
+}
+
+.mm-field__icon {
+  position: absolute;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+
+.mm-form__submit {
+  margin-top: 34px;
+  height: 64px;
+  border: 1px solid var(--cream);
+  background: transparent;
+  color: var(--cream);
+  font: 600 10.5px/1 var(--f-ui);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.mm-form__submit:hover {
+  background: var(--cream);
+  color: var(--charcoal);
+}
+
+/* ═════════════════════════ 7. FOOTER ═════════════════════════ */
+
+.mm-footer {
+  position: relative;
+  display: grid;
+  gap: 22px;
+  padding: 32px var(--gutter) 40px;
+  background: var(--charcoal);
+}
+
+.mm-footer__logo .mm-wordmark {
+  font-size: 40px;
+}
+
+.mm-footer__about p {
+  margin: 0;
+  line-height: 2.3;
+}
+
+.mm-footer__kinds {
+  display: flex;
+  gap: 2.4em;
+}
+
+.mm-footer__links {
+  display: flex;
+  gap: 2.6em;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mm-footer__links a {
+  transition: opacity 0.3s;
+}
+
+.mm-footer__links a:hover {
+  opacity: 0.6;
+}
+
+/* ═══════════════════ DESKTOP: the artboard (>= 900px) ═══════════════════ */
+
+@media (min-width: 900px) {
+  .mm-desk {
+    display: inline;
+  }
+
+  .mm-label {
+    font-size: max(10px, calc(11.5 * var(--u)));
+  }
+
+  .mm-micro {
+    font-size: max(8.5px, calc(10 * var(--u)));
+  }
+
+  .mm-h2 {
+    font-size: calc(68 * var(--u));
+    line-height: 1.04;
+  }
+
+  .mm-copy {
+    font-size: max(15px, calc(20 * var(--u)));
+    line-height: 1.68;
+  }
+
+  .mm-cta {
+    gap: calc(22 * var(--u));
+    font-size: max(9.5px, calc(12 * var(--u)));
+  }
+
+  .mm-arrow {
+    width: calc(72 * var(--u));
+    height: max(8px, calc(10 * var(--u)));
+  }
+
+  .mm-arrow--short {
+    width: calc(22 * var(--u));
+  }
+
+  .mm-cta--rule .mm-cta__label {
+    padding-bottom: calc(11 * var(--u));
+  }
+
+  .mm-note {
+    font-size: calc(36 * var(--u));
+  }
+
+  /* ── hero ── */
+
+  .mm-hero {
+    height: calc(940 * var(--u));
+    min-height: 560px;
+    max-height: none;
+  }
+
+  .mm-hero__media {
+    /* The photograph lives in the right two thirds and dissolves leftward */
+    mask-image: linear-gradient(90deg, transparent 20%, rgb(0 0 0 / 0.55) 34%, #000 52%);
+  }
+
+  .mm-hero__shade {
+    background: rgb(13 8 9 / 0.32);
+  }
+
+  .mm-hero__copy {
+    left: calc(99 * var(--u));
+    right: auto;
+    top: calc(262 * var(--u));
+    bottom: auto;
+  }
+
+  .mm-hero__eyebrow {
+    line-height: 1.8;
+  }
+
+  .mm-hero__title {
+    margin-top: calc(24 * var(--u));
+    font-size: calc(108 * var(--u));
+    line-height: 0.93;
+    letter-spacing: -0.018em;
+  }
+
+  .mm-hero__rule {
+    width: calc(95 * var(--u));
+    margin-top: calc(62 * var(--u));
+    margin-bottom: calc(50 * var(--u));
+  }
+
+  .mm-hero__count {
+    left: calc(99 * var(--u));
+    top: calc(872 * var(--u));
+    bottom: auto;
+    gap: calc(22 * var(--u));
+  }
+
+  .mm-hero__count button {
+    padding: 4px 0;
+    font-size: max(9px, calc(11.5 * var(--u)));
+  }
+
+  /* ── the table ── */
+
+  .mm-table {
+    --slant: calc(108 * var(--u));
+    display: block;
+    height: calc(827 * var(--u));
+    margin-top: calc(-12 * var(--u));
+    padding: 0;
+  }
+
+  .mm-table__media {
+    position: static;
+    height: auto;
+    max-height: none;
+  }
+
+  .mm-table__plate {
+    inset: auto;
+    left: calc(76 * var(--u));
+    top: calc(62 * var(--u));
+    width: calc(620 * var(--u));
+    height: calc(665 * var(--u));
+    transform: rotate(-1.1deg);
+    box-shadow: 0 calc(10 * var(--u)) calc(30 * var(--u)) rgb(13 8 9 / 0.2);
+  }
+
+  .mm-table__glass {
+    right: auto;
+    bottom: auto;
+    left: calc(497 * var(--u));
+    top: calc(424 * var(--u));
+    width: calc(350 * var(--u));
+    aspect-ratio: 350 / 268;
+    transform: rotate(-6.5deg);
+    box-shadow: 0 calc(16 * var(--u)) calc(34 * var(--u)) rgb(13 8 9 / 0.38);
+  }
+
+  .mm-table__note {
+    right: auto;
+    bottom: auto;
+    left: calc(730 * var(--u));
+    top: calc(706 * var(--u));
+    font-size: calc(40 * var(--u));
+    transform: rotate(-15deg);
+  }
+
+  .mm-table__text {
+    position: absolute;
+    left: calc(755 * var(--u));
+    top: calc(98 * var(--u));
+    margin: 0;
+  }
+
+  .mm-table__text .mm-h2 {
+    margin-top: calc(18 * var(--u));
+  }
+
+  .mm-table__body {
+    margin-top: calc(54 * var(--u));
+    margin-left: calc(158 * var(--u));
+    width: calc(350 * var(--u));
+  }
+
+  .mm-table__body .mm-copy {
+    max-width: none;
+    margin-bottom: calc(62 * var(--u));
+  }
+
+  .mm-table__cats {
+    position: absolute;
+    left: calc(1196 * var(--u));
+    top: calc(101 * var(--u));
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+    border: 0;
+    line-height: calc(32 * var(--u));
+  }
+
+  /* ── the room ── */
+
+  .mm-room {
+    display: block;
+    height: calc(637 * var(--u));
+    padding: 0;
+  }
+
+  .mm-room__text {
+    position: absolute;
+    left: calc(99 * var(--u));
+    top: calc(88 * var(--u));
+    z-index: 1;
+  }
+
+  .mm-room .mm-h2 {
+    margin-top: calc(18 * var(--u));
+  }
+
+  .mm-room .mm-copy {
+    max-width: none;
+    margin-top: calc(32 * var(--u));
+    margin-bottom: calc(48 * var(--u));
+    line-height: 1.62;
+  }
+
+  .mm-room__media {
+    position: static;
+    height: auto;
+    max-height: none;
+    margin: 0;
+  }
+
+  .mm-room__main {
+    inset: auto;
+    left: calc(531 * var(--u));
+    top: calc(11 * var(--u));
+    width: calc(618 * var(--u));
+    height: calc(579 * var(--u));
+  }
+
+  .mm-room__inset {
+    right: auto;
+    left: calc(1073 * var(--u));
+    top: calc(54 * var(--u));
+    width: calc(309 * var(--u));
+    box-shadow: 0 calc(18 * var(--u)) calc(40 * var(--u)) rgb(13 8 9 / 0.55);
+  }
+
+  .mm-room__note {
+    right: auto;
+    bottom: auto;
+    left: calc(1180 * var(--u));
+    top: calc(420 * var(--u));
+    font-size: calc(36 * var(--u));
+    transform: rotate(-12deg);
+  }
+
+  /* ── evening ── */
+
+  .mm-evening {
+    display: block;
+    height: calc(507 * var(--u));
+    min-height: 0;
+    padding: 0;
+  }
+
+  .mm-evening__photo {
+    filter: blur(calc(4 * var(--u))) saturate(0.9);
+  }
+
+  .mm-evening__shade {
+    background: rgb(13 8 9 / 0.58);
+  }
+
+  .mm-evening__inner {
+    position: absolute;
+    left: calc(365 * var(--u));
+    top: calc(176 * var(--u));
+    width: calc(864 * var(--u));
+    max-width: none;
+  }
+
+  .mm-evening__title {
+    font-size: max(10px, calc(13 * var(--u)));
+    letter-spacing: 0.32em;
+  }
+
+  .mm-evening__line {
+    --dot: max(9px, calc(13 * var(--u)));
+    margin-top: calc(100 * var(--u));
+  }
+
+  .mm-evening__line::before {
+    left: calc(66 * var(--u));
+    right: calc(66 * var(--u));
+  }
+
+  .mm-evening__time,
+  .mm-evening__what {
+    font-size: max(9px, calc(11.5 * var(--u)));
+  }
+
+  .mm-evening__time {
+    margin-top: calc(22 * var(--u));
+  }
+
+  /* ── what's on ── */
+
+  .mm-on {
+    --wave: calc(40 * var(--u));
+    display: block;
+    height: calc(572 * var(--u));
+    margin-top: calc(-10 * var(--u));
+    padding: 0;
+  }
+
+  .mm-on__text {
+    position: absolute;
+    left: calc(86 * var(--u));
+    top: calc(84 * var(--u));
+  }
+
+  .mm-on .mm-h2 {
+    margin-top: calc(14 * var(--u));
+    margin-bottom: calc(46 * var(--u));
+  }
+
+  .mm-on__media {
+    position: static;
+    height: auto;
+    margin: 0;
+  }
+
+  .mm-on__one {
+    left: calc(546 * var(--u));
+    top: calc(58 * var(--u));
+    width: calc(218 * var(--u));
+  }
+
+  .mm-on__two {
+    left: calc(612 * var(--u));
+    top: calc(238 * var(--u));
+    width: calc(216 * var(--u));
+  }
+
+  .mm-on__note {
+    left: calc(604 * var(--u));
+    top: calc(424 * var(--u));
+    bottom: auto;
+    font-size: calc(28 * var(--u));
+    transform: rotate(-13deg);
+  }
+
+  .mm-on__events {
+    position: absolute;
+    left: calc(905 * var(--u));
+    top: calc(93 * var(--u));
+    width: calc(468 * var(--u));
+    margin: 0;
+  }
+
+  .mm-on__events li:last-child {
+    border-bottom: 1px solid rgb(13 8 9 / 0.22);
+  }
+
+  .mm-on__events li:first-child {
+    border-top: 0;
+  }
+
+  .mm-event {
+    grid-template-columns: calc(127 * var(--u)) 1fr auto;
+    height: calc(114 * var(--u));
+    padding: 0;
+    font-size: max(8.5px, calc(11 * var(--u)));
+    line-height: 2.2;
+  }
+
+  /* ── reservation ── */
+
+  .mm-reserve {
+    display: block;
+    height: calc(700 * var(--u));
+    margin-top: calc(-42 * var(--u));
+    padding: 0;
+  }
+
+  .mm-reserve__photo {
+    mask-image: linear-gradient(#000 72%, transparent 100%);
+  }
+
+  .mm-reserve__shade {
+    /* Charcoal sits heavier on the headline side */
+    background: rgb(13 8 9 / 0.42);
+  }
+
+  .mm-reserve__text {
+    position: absolute;
+    left: calc(99 * var(--u));
+    top: calc(108 * var(--u));
+  }
+
+  .mm-reserve__title {
+    margin-top: calc(22 * var(--u));
+    font-size: calc(74 * var(--u));
+    line-height: 1.02;
+  }
+
+  .mm-reserve__note {
+    margin-top: calc(58 * var(--u));
+    margin-left: calc(118 * var(--u));
+    font-size: calc(36 * var(--u));
+    transform: rotate(-15deg);
+  }
+
+  .mm-form {
+    position: absolute;
+    left: calc(978 * var(--u));
+    top: calc(130 * var(--u));
+    width: calc(395 * var(--u));
+    min-height: calc(460 * var(--u));
+    padding: calc(34 * var(--u)) calc(34 * var(--u)) calc(38 * var(--u));
+  }
+
+  .mm-form__title {
+    margin-bottom: calc(14 * var(--u));
+    font-size: max(9px, calc(12 * var(--u)));
+  }
+
+  .mm-field {
+    height: calc(69 * var(--u));
+  }
+
+  .mm-field__name {
+    font-size: max(8.5px, calc(11 * var(--u)));
+  }
+
+  .mm-field input,
+  .mm-field select {
+    font-size: max(10px, calc(12 * var(--u)));
+  }
+
+  .mm-field__icon {
+    width: calc(14 * var(--u));
+    height: calc(14 * var(--u));
+  }
+
+  .mm-form__submit {
+    margin-top: calc(40 * var(--u));
+    height: calc(82 * var(--u));
+    font-size: max(9px, calc(11.5 * var(--u)));
+  }
+
+  /* ── footer ── */
+
+  .mm-footer {
+    display: block;
+    height: calc(248 * var(--u));
+    padding: 0;
+  }
+
+  .mm-footer__logo .mm-wordmark {
+    font-size: calc(66 * var(--u));
+  }
+
+  .mm-footer__logo {
+    position: absolute;
+    left: calc(93 * var(--u));
+    top: calc(14 * var(--u));
+  }
+
+  .mm-footer__about {
+    position: absolute;
+    left: calc(93 * var(--u));
+    top: calc(104 * var(--u));
+  }
+
+  .mm-footer__about p {
+    line-height: calc(26 * var(--u));
+  }
+
+  .mm-footer__kinds {
+    gap: calc(48 * var(--u));
+  }
+
+  .mm-footer__links {
+    position: absolute;
+    left: calc(989 * var(--u));
+    top: calc(104 * var(--u));
+    gap: calc(62 * var(--u));
+    margin: 0;
+    line-height: calc(26 * var(--u));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-hero__media img,
+  .mm-arrow {
+    transition: none;
+  }
+}
