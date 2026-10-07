@@ -8,11 +8,6 @@ export function Hero() {
       <div className="mm-hero__shade" aria-hidden />
 
       <div className="mm-hero__copy">
-        <p className="mm-label mm-hero__eyebrow">
-          Good food.
-          <br />
-          Longer nights.
-        </p>
         <h1 id="hero-title" className="mm-display mm-hero__title">
           Dinner
           <br />

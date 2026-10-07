@@ -36,7 +36,6 @@ export function Reservation() {
       <div className="mm-reserve__shade" aria-hidden />
 
       <div className="mm-reserve__text">
-        <p className="mm-label">Milli Milli</p>
         <h2 id="reserve-title" className="mm-display mm-reserve__title">
           Come for dinner.
           <br />

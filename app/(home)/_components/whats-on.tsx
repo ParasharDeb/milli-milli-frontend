@@ -30,7 +30,6 @@ export function WhatsOn() {
   return (
     <section id="every-night" className="mm-on mm-paper" aria-labelledby="on-title">
       <div className="mm-on__text">
-        <p className="mm-label">Every Night</p>
         <h2 id="on-title" className="mm-display mm-h2">
           Good food.
           <br />

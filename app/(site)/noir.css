@@ -1,0 +1,289 @@
+/*
+ * The landing page's "Noir" palette (/1), carried onto the inner pages.
+ *
+ * Black rooms (#0d0809, the landing page's own), paper (#ded6cb), walnut for anything that used
+ * to be orange (#71583a). Wrapping a page in .noir re-inks every Tailwind colour
+ * token underneath it, swaps the type to the landing's Cormorant + Manrope,
+ * and brings the shared navbar along through :has().
+ *
+ * Cards here are prints and tickets, not app tiles: square corners, hairline
+ * borders, a walnut bracket at two corners and a mat line over photographs.
+ */
+
+/* Theme pieces sit in the components layer so Tailwind utilities still win */
+@layer components {
+  .noir {
+    --noir-black: #0d0809;
+    --noir-sand: #ded6cb;
+    /* The landing page's black, and a lifted black for hovers on it */
+    --noir-black-hi: #2a2526;
+    --noir-walnut: #71583a;
+    /* A card sits one shade lighter than the paper it lies on */
+    --noir-card: #e8e2d9;
+    --noir-hair: rgb(13 8 9 / 0.16);
+
+    --color-cream: var(--noir-sand);
+    --color-sand: #d0c6b8;
+    --color-parchment: var(--noir-card);
+    --color-ink: var(--noir-black);
+    --color-muted: #5c5246;
+    --color-line: var(--noir-hair);
+    --color-espresso: var(--noir-black);
+    --color-cocoa: #262320;
+    --color-ember: var(--noir-walnut);
+    --color-rust: var(--noir-walnut);
+    --color-terracotta: var(--noir-walnut);
+    --color-amber: #a3865f;
+    --color-gold: #a3865f;
+    --color-basil: #3c6a4c;
+
+    /* font-display / font-sans resolve through these next/font variables */
+    --font-fraunces: var(--font-mm-display), "Cormorant Garamond", Georgia, serif;
+    --font-inter: var(--font-mm-ui), "Manrope", system-ui, sans-serif;
+
+    --noir-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .05 0 0 0 0 .03 0 0 0 0 .035 0 0 0 1 -.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    /* The navbar's height once lifted, mirrored from site-nav.css */
+    --noir-nav: 76px;
+    --noir-cut: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+
+    background: var(--noir-sand);
+    color: var(--noir-black);
+    font-family: var(--font-inter);
+  }
+
+  @media (min-width: 900px) {
+    .noir {
+      --noir-nav: max(64px, calc(84 * min(100vw, 1920px) / 1440));
+    }
+  }
+
+  .noir ::selection {
+    background: var(--noir-black);
+    color: var(--noir-sand);
+  }
+
+  /* ───────────────────────── surfaces ───────────────────────── */
+
+  /* Paper tooth, so the sand reads as stock rather than a flat fill */
+  .noir-paper {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .noir-paper::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--noir-noise);
+    background-size: 240px 240px;
+    opacity: 0.2;
+  }
+
+  /* For a sticky bar whose fill fades out at the top: the tooth fades with it */
+  .noir-paper--fade::before {
+    mask-image: linear-gradient(to top, #000 80%, transparent);
+  }
+
+  /* ───────────────────────── type ───────────────────────── */
+
+  .noir-label {
+    font-family: var(--font-inter);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.6;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .noir-index {
+    font-family: var(--font-fraunces);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+
+  /* ───────────────────────── cards ───────────────────────── */
+
+  .noir-card {
+    position: relative;
+    isolation: isolate;
+    border: 1px solid var(--noir-hair);
+    border-radius: 0;
+    background: var(--noir-card);
+    transition:
+      transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 0.3s ease;
+  }
+
+  .noir-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--noir-noise);
+    background-size: 240px 240px;
+    opacity: 0.16;
+  }
+
+  /* Walnut brackets at the top-left and bottom-right corners */
+  .noir-corners {
+    position: absolute;
+    inset: -1px;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .noir-corners::before,
+  .noir-corners::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-color: var(--noir-walnut);
+    border-style: solid;
+    transition:
+      width 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+      height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 0.3s ease;
+  }
+
+  .noir-corners::before {
+    top: 0;
+    left: 0;
+    border-width: 1.5px 0 0 1.5px;
+  }
+
+  .noir-corners::after {
+    right: 0;
+    bottom: 0;
+    border-width: 0 1.5px 1.5px 0;
+  }
+
+  /* Lift on hover, only where there is a pointer to hover with */
+  @media (hover: hover) and (min-width: 640px) {
+    .noir-card--lift:hover {
+      transform: translateY(-3px);
+      border-color: rgb(13 8 9 / 0.32);
+      box-shadow: 0 22px 34px -26px rgb(13 8 9 / 0.7);
+    }
+
+    .noir-card--lift:hover .noir-corners::before,
+    .noir-card--lift:hover .noir-corners::after {
+      width: 22px;
+      height: 22px;
+      border-color: var(--noir-black);
+    }
+
+    .noir-card--lift:hover .noir-print img {
+      transform: scale(1.045);
+    }
+  }
+
+  /* A photograph laid in a card, with a thin mat line inside the edge */
+  .noir-print {
+    position: relative;
+    overflow: hidden;
+    background: #cfc5b7;
+  }
+
+  .noir-print img {
+    transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .noir-print::after {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    border: 1px solid rgb(222 214 203 / 0.6);
+    pointer-events: none;
+  }
+
+  /* ───────────────────────── controls ───────────────────────── */
+
+  /* Black, square, one corner clipped: the house button */
+  .noir-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border-radius: 0;
+    background: var(--noir-black);
+    color: var(--noir-sand);
+    font-family: var(--font-inter);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    clip-path: var(--noir-cut);
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease,
+      opacity 0.3s ease;
+  }
+
+  .noir-btn:hover:not(:disabled) {
+    background: var(--noir-black-hi);
+  }
+
+  .noir-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .noir-btn--done,
+  .noir-btn--done:disabled {
+    background: var(--noir-black-hi);
+    opacity: 1;
+    cursor: default;
+  }
+
+  /* The landing's long hairline arrow */
+  .noir-arrow {
+    flex: none;
+    transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .group:hover .noir-arrow,
+  .noir-btn:hover .noir-arrow {
+    transform: translateX(5px);
+  }
+
+  /* A row that inverts to black on hover: replies, menu picks, topics */
+  .noir-row {
+    position: relative;
+    border: 1px solid var(--noir-hair);
+    background: transparent;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease,
+      border-color 0.3s ease;
+  }
+
+  .noir-row:hover:not(:disabled),
+  .noir-row[aria-pressed="true"] {
+    background: var(--noir-black);
+    border-color: var(--noir-black);
+    color: var(--noir-sand);
+  }
+
+  .noir-row:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+}
+
+/* The navbar sits outside the page, so it borrows the palette through :has() */
+body:has(.noir) .sn {
+  --charcoal: #0d0809;
+  --cream: #d3c4ad;
+}
+
+/* The footer sits outside the wrapper too; give it the same black */
+body:has(.noir) {
+  --color-espresso: #0d0809;
+  background: #0d0809;
+}

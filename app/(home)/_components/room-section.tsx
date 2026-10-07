@@ -4,7 +4,6 @@ export function RoomSection() {
   return (
     <section id="the-room" className="mm-room" aria-labelledby="room-title">
       <div className="mm-room__text">
-        <p className="mm-label">The Room</p>
         <h2 id="room-title" className="mm-display mm-h2">
           A space
           <br />

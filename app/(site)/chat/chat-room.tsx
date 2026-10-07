@@ -170,7 +170,7 @@ function RichText({ text }: { text: string }) {
 
 function Avatar() {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink font-display text-[17px] text-cream">
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-ink font-display text-[20px] text-cream italic [clip-path:polygon(0_0,100%_0,100%_calc(100%-7px),calc(100%-7px)_100%,0_100%)]">
       M
     </span>
   );
@@ -178,7 +178,7 @@ function Avatar() {
 
 function GuestAvatar() {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sand text-ink/60">
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-line text-ink/60">
       <svg aria-hidden width="17" height="17" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="8.5" r="3.5" {...S} />
         <path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" {...S} />
@@ -191,6 +191,15 @@ function Chevron({ dir }: { dir: "left" | "right" }) {
   return (
     <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none">
       <path d={dir === "left" ? "M19 12H5m6-6-6 6 6 6" : "M5 12h14m-6-6 6 6-6 6"} {...S} />
+    </svg>
+  );
+}
+
+/** The landing page's hairline arrow. */
+function Arrow({ w = 22 }: { w?: number }) {
+  return (
+    <svg aria-hidden className="noir-arrow" width={w} height="10" viewBox={`0 0 ${w} 10`} fill="none">
+      <path d={`M0 5H${w - 1}M${w - 6} 1l5 4-5 4`} stroke="currentColor" strokeWidth="1" />
     </svg>
   );
 }
@@ -213,47 +222,49 @@ function DishCard({ item, browseOnly }: { item: MenuItem; browseOnly?: boolean }
   return (
     <motion.li
       variants={deal}
-      className="w-[46%] shrink-0 snap-start overflow-hidden rounded-lg border border-line bg-[#fbf8f3] sm:w-[168px]"
+      className="noir-card noir-card--lift flex w-[46%] shrink-0 snap-start flex-col sm:w-[172px]"
     >
-      <span className="relative block aspect-[4/3] bg-sand">
+      <span aria-hidden className="noir-corners" />
+      <span className="noir-print relative m-1.5 mb-0 block aspect-[4/3]">
         {img ? (
           <Image
             src={img}
             alt={item.name}
             fill
             sizes="170px"
-            className={cutout ? "bg-[#f4efe7] object-contain p-2" : "object-cover"}
+            className={cutout ? "bg-[#ece6dd] object-contain p-3" : "object-cover"}
           />
         ) : (
-          <span className="flex h-full items-center justify-center font-display text-3xl text-muted/50">
+          <span className="flex h-full items-center justify-center font-display text-4xl text-ink/30 italic">
             {item.name.trim().charAt(0)}
           </span>
         )}
       </span>
-      <span className="block px-3 pt-2.5 pb-3">
-        <span className="block text-[12.5px] leading-snug font-medium">{item.name}</span>
+      <span className="flex flex-1 flex-col px-3 pt-3 pb-3">
+        <span className="block font-display text-[17px] leading-[1.15]">{item.name}</span>
         {item.desc && (
-          <span className="mt-0.5 line-clamp-2 block text-[11px] leading-snug text-muted">{item.desc}</span>
+          <span className="mt-1 line-clamp-2 block text-[11px] leading-snug text-muted">{item.desc}</span>
         )}
-        <span className="mt-2 flex items-center justify-between gap-2">
-          <span className="text-[12.5px] text-ember tabular-nums">{price ?? ""}</span>
-          {!browseOnly && (
-            <motion.button
-              type="button"
-              onClick={handleAdd}
-              disabled={busy || added}
-              whileTap={{ scale: 0.9 }}
-              aria-label={added ? `${item.name} added` : `Add ${item.name} to your order`}
-              className={`rounded-full border px-2.5 py-0.5 text-[11px] transition-colors disabled:cursor-default ${
-                added
-                  ? "border-basil bg-basil text-cream"
-                  : "border-ink/15 text-ink/70 hover:border-ember hover:text-ember disabled:opacity-60"
-              }`}
-            >
-              {added ? "Added ✓" : "+ Add"}
-            </motion.button>
-          )}
-        </span>
+        {(price || !browseOnly) && (
+          <>
+            <span aria-hidden className="block h-3" />
+            <span className="mt-auto flex items-center justify-between gap-2 border-t border-line pt-2.5">
+              <span className="noir-label text-ember tabular-nums">{price ?? ""}</span>
+              {!browseOnly && (
+                <motion.button
+                  type="button"
+                  onClick={handleAdd}
+                  disabled={busy || added}
+                  whileTap={{ scale: 0.9 }}
+                  aria-label={added ? `${item.name} added` : `Add ${item.name} to your order`}
+                  className={`noir-btn h-7 px-3 text-[9.5px] ${added ? "noir-btn--done" : ""}`}
+                >
+                  {added ? "Added ✓" : "Add +"}
+                </motion.button>
+              )}
+            </span>
+          </>
+        )}
       </span>
     </motion.li>
   );
@@ -269,7 +280,7 @@ function DishRow({ items, browseOnly }: { items: MenuItem[]; browseOnly?: boolea
       <motion.ul
         ref={row}
         variants={reveal}
-        className="no-scrollbar flex snap-x snap-mandatory gap-2.5 overflow-x-auto"
+        className="no-scrollbar -mx-1 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-1 pt-1 pb-3"
       >
         {items.map((dish) => (
           <DishCard key={dish.id} item={dish} browseOnly={browseOnly} />
@@ -282,7 +293,7 @@ function DishRow({ items, browseOnly }: { items: MenuItem[]; browseOnly?: boolea
             type="button"
             onClick={() => scroll(-1)}
             aria-label="Scroll dishes back"
-            className="absolute top-[38%] -left-4 hidden h-9 w-9 items-center justify-center rounded-full border border-line bg-cream shadow-sm transition-colors hover:border-ink sm:flex"
+            className="absolute top-[38%] -left-4 z-10 hidden h-9 w-9 items-center justify-center bg-ink text-cream transition-colors hover:bg-ink/80 sm:flex"
           >
             <Chevron dir="left" />
           </button>
@@ -290,7 +301,7 @@ function DishRow({ items, browseOnly }: { items: MenuItem[]; browseOnly?: boolea
             type="button"
             onClick={() => scroll(1)}
             aria-label="Scroll dishes on"
-            className="absolute top-[38%] -right-4 hidden h-9 w-9 items-center justify-center rounded-full border border-line bg-cream shadow-sm transition-colors hover:border-ink sm:flex"
+            className="absolute top-[38%] -right-4 z-10 hidden h-9 w-9 items-center justify-center bg-ink text-cream transition-colors hover:bg-ink/80 sm:flex"
           >
             <Chevron dir="right" />
           </button>
@@ -305,10 +316,10 @@ function GroupBlock({ group }: { group: RecommendationGroup }) {
     <motion.div variants={reveal} className="mt-4 first:mt-2">
       <motion.p
         variants={rise}
-        className="flex items-baseline gap-2 font-display text-[17px] font-light"
+        className="flex items-baseline gap-3 border-b border-line pb-1.5 font-display text-[21px] italic"
       >
         {group.label}
-        {group.count > 1 && <span className="font-sans text-[12.5px] text-muted">· {group.count} guests</span>}
+        {group.count > 1 && <span className="noir-label text-muted not-italic">{group.count} guests</span>}
       </motion.p>
 
       {group.recommendations.length > 0 ? (
@@ -331,23 +342,23 @@ function GroupBlock({ group }: { group: RecommendationGroup }) {
 
 function MenuCards({ onPick, disabled }: { onPick: (text: string) => void; disabled: boolean }) {
   return (
-    <motion.ul variants={reveal} className="mt-3 grid gap-2 sm:grid-cols-3">
-      {MENU_CARDS.map((card) => (
-        <motion.li key={card.label} variants={deal}>
+    <motion.ul variants={reveal} className="mt-4 grid gap-2.5 sm:grid-cols-3">
+      {MENU_CARDS.map((card, i) => (
+        <motion.li key={card.label} variants={deal} className="h-full">
           <motion.button
             type="button"
             onClick={() => onPick(card.label)}
             disabled={disabled}
-            whileHover={{ y: -2 }}
-            whileTap={{ scale: 0.97 }}
-            className="group flex w-full items-center gap-3 rounded-lg border border-line bg-[#fbf8f3] px-3.5 py-3 text-left transition-colors hover:border-ember/50 disabled:cursor-default disabled:opacity-60"
+            whileTap={{ scale: 0.98 }}
+            className="noir-card noir-card--lift group flex h-full w-full flex-col px-4 pt-3.5 pb-3.5 text-left disabled:cursor-default disabled:opacity-60"
           >
-            <span className={`h-2 w-2 shrink-0 rounded-full ${card.dot}`} />
-            <span className="flex-1">
-              <span className="block text-[13.5px] leading-snug font-medium">{card.label}</span>
-              <span className="block text-[11.5px] text-muted">{card.note}</span>
+            <span aria-hidden className="noir-corners" />
+            <span className="noir-index text-[15px] text-ember">No. {String(i + 1).padStart(2, "0")}</span>
+            <span className="mt-4 mb-3 block font-display text-[24px] leading-none">{card.label}</span>
+            <span className="mt-auto flex items-center justify-between gap-3 border-t border-line pt-2.5">
+              <span className="noir-label text-muted">{card.note}</span>
+              <Arrow />
             </span>
-            <span className="text-muted transition-transform group-hover:translate-x-1 group-hover:text-ember">→</span>
           </motion.button>
         </motion.li>
       ))}
@@ -370,7 +381,7 @@ function ReplyCards({
   disabled: boolean;
 }) {
   return (
-    <motion.ul variants={reveal} className="mt-4 grid gap-2 border-t border-line pt-3 sm:grid-cols-2">
+    <motion.ul variants={reveal} className="mt-5 grid gap-2 border-t border-line pt-4 sm:grid-cols-2">
       {chips.map((chip) => {
         const decline = /^no\b/i.test(chip);
         return (
@@ -379,15 +390,14 @@ function ReplyCards({
               type="button"
               onClick={() => onPick(chip)}
               disabled={disabled}
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              className="group flex w-full items-center gap-3 rounded-lg border border-line bg-cream px-3.5 py-2.5 text-left transition-colors hover:border-ember/50 disabled:cursor-default disabled:opacity-60"
+              whileTap={{ scale: 0.98 }}
+              className="noir-row group flex w-full items-center gap-3 px-4 py-3 text-left"
             >
-              <span className={`h-2 w-2 shrink-0 rounded-full ${decline ? "bg-ink/25" : "bg-ember"}`} />
-              <span className={`flex-1 text-[13px] leading-snug ${decline ? "text-ink/70" : "font-medium"}`}>
+              <span aria-hidden className={`h-[7px] w-[7px] shrink-0 rotate-45 ${decline ? "border border-current opacity-50" : "bg-current"}`} />
+              <span className={`flex-1 text-[13px] leading-snug ${decline ? "opacity-70" : "font-medium"}`}>
                 {chip}
               </span>
-              <span className="text-muted transition-transform group-hover:translate-x-1 group-hover:text-ember">→</span>
+              <Arrow />
             </motion.button>
           </motion.li>
         );
@@ -418,7 +428,7 @@ function Thinking() {
             key={d}
             animate={{ opacity: [0.25, 1, 0.25], y: [0, -4, 0] }}
             transition={{ duration: 1, repeat: Infinity, delay: d * 0.15, ease: "easeInOut" }}
-            className="h-1.5 w-1.5 rounded-full bg-ember"
+            className="h-1.5 w-1.5 rotate-45 bg-ember"
           />
         ))}
       </span>
@@ -816,12 +826,13 @@ export function ChatRoom() {
   return (
     <AfterAddContext.Provider value={(ids) => void afterAdd(ids)}>
       <MotionConfig reducedMotion="user">
-        <section id="concierge" className="scroll-mt-16 bg-cream">
+        <section id="concierge" className="noir-paper scroll-mt-16 bg-cream">
           <div className="mx-auto grid w-full max-w-[1400px] gap-6 px-5 py-10 md:px-10 lg:grid-cols-[250px_1fr] lg:gap-10 lg:py-14">
             {/* topics */}
             <nav aria-label="Topics" className="min-w-0 lg:sticky lg:top-24 lg:self-start">
-              <ul className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-col lg:gap-1.5 lg:overflow-visible lg:px-0">
-                {TOPICS.map((t) => {
+              <p className="noir-label mb-4 hidden text-muted lg:block">Ask about</p>
+              <ul className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-col lg:gap-0 lg:overflow-visible lg:border-t lg:border-line lg:px-0">
+                {TOPICS.map((t, i) => {
                   const on = t.id === topic;
                   return (
                     <li key={t.id} className="shrink-0">
@@ -830,27 +841,33 @@ export function ChatRoom() {
                         onClick={() => pickTopic(t)}
                         disabled={thinking}
                         aria-pressed={on}
-                        className={`relative flex w-full items-center gap-3.5 rounded-full px-4 py-2.5 text-left transition-colors disabled:cursor-default lg:rounded-2xl lg:px-5 lg:py-3.5 ${
-                          on ? "text-cream" : "text-ink/80 hover:bg-sand/70"
+                        className={`group relative flex w-full items-center gap-3.5 px-4 py-2.5 text-left transition-colors disabled:cursor-default lg:border-b lg:border-line lg:py-4 ${
+                          on ? "text-cream" : "text-ink/80 hover:text-ink"
                         } max-lg:border max-lg:border-line`}
                       >
                         {on && (
                           <motion.span
                             layoutId="chat-topic"
                             transition={{ type: "spring", stiffness: 380, damping: 34 }}
-                            className="absolute inset-0 rounded-full bg-ink lg:rounded-2xl"
+                            className="absolute inset-0 bg-ink lg:-inset-y-px"
                           />
                         )}
-                        <span className="relative">{t.icon}</span>
-                        <span className="relative">
-                          <span className="block text-[13px] leading-tight whitespace-nowrap">{t.title}</span>
+                        <span className={`noir-index relative hidden text-[14px] lg:block ${on ? "text-cream/60" : "text-ember"}`}>
+                          {String(i + 1).padStart(2, "0")}
+                        </span>
+                        <span className="relative lg:hidden">{t.icon}</span>
+                        <span className="relative flex-1">
+                          <span className="block font-display text-[15px] leading-tight whitespace-nowrap lg:text-[19px]">{t.title}</span>
                           <span
-                            className={`mt-0.5 hidden text-[11px] leading-tight lg:block ${
+                            className={`mt-1 hidden text-[11px] leading-tight lg:block ${
                               on ? "text-cream/60" : "text-muted"
                             }`}
                           >
                             {t.sub}
                           </span>
+                        </span>
+                        <span className={`relative hidden lg:block ${on ? "" : "opacity-0 transition-opacity group-hover:opacity-100"}`}>
+                          <Arrow />
                         </span>
                       </button>
                     </li>
@@ -875,7 +892,7 @@ export function ChatRoom() {
                           style={{ originX: 1, originY: 1 }}
                           className="flex items-end justify-end gap-3"
                         >
-                          <div className="max-w-[78%] rounded-2xl rounded-br-sm bg-ink px-4 py-2.5 text-[13.5px] leading-relaxed text-cream whitespace-pre-wrap">
+                          <div className="max-w-[78%] bg-ink px-4 py-3 text-[13.5px] leading-relaxed text-cream whitespace-pre-wrap [clip-path:polygon(0_0,100%_0,100%_calc(100%-9px),calc(100%-9px)_100%,0_100%)]">
                             {m.text}
                           </div>
                           <GuestAvatar />
@@ -920,7 +937,7 @@ export function ChatRoom() {
                               },
                             }}
                             style={{ originX: 0, originY: 0 }}
-                            className="rounded-2xl rounded-tl-sm border border-line bg-[#fbf8f3] px-5 py-4 text-[13.5px] leading-relaxed text-ink"
+                            className="noir-card border-l-2 border-l-ember px-5 py-4 text-[13.5px] leading-relaxed text-ink"
                           >
                             <RichText text={m.text} />
 
@@ -967,10 +984,10 @@ export function ChatRoom() {
                             <motion.div variants={deal}>
                               <Link
                                 href={m.link.href}
-                                className="group mt-2.5 inline-flex items-center gap-2 rounded-full bg-ember px-5 py-2.5 text-[12.5px] font-medium text-cream transition-colors hover:bg-ink"
+                                className="noir-btn mt-3 h-11 px-6"
                               >
                                 {m.link.label}
-                                <span className="transition-transform group-hover:translate-x-1">→</span>
+                                <Arrow w={34} />
                               </Link>
                             </motion.div>
                           )}
@@ -992,7 +1009,7 @@ export function ChatRoom() {
                         className="flex gap-3"
                       >
                         <Avatar />
-                        <div className="rounded-2xl rounded-tl-sm border border-line bg-[#fbf8f3] px-5 py-3.5">
+                        <div className="noir-card border-l-2 border-l-ember px-5 py-3.5">
                           <Thinking />
                         </div>
                       </motion.li>
@@ -1005,7 +1022,7 @@ export function ChatRoom() {
               {/* composer, pinned to the bottom of the window while the chat is on screen */}
               <div
                 ref={composer}
-                className="sticky bottom-0 z-10 -mx-2 bg-gradient-to-t from-cream from-80% to-cream/0 px-2 pt-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+                className="noir-paper noir-paper--fade sticky bottom-0 z-10 -mx-2 bg-gradient-to-t from-cream from-80% to-cream/0 px-2 pt-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
               >
                 {/* jump back down after scrolling up */}
                 <AnimatePresence>
@@ -1018,7 +1035,7 @@ export function ChatRoom() {
                       exit={{ opacity: 0, y: 12, scale: 0.8 }}
                       transition={SPRING}
                       aria-label="Scroll to the latest message"
-                      className="absolute -top-6 left-1/2 z-10 -translate-x-1/2 rounded-full border border-line bg-cream px-4 py-2 text-[12px] text-ink shadow-lg shadow-ink/10 hover:border-ember"
+                      className="noir-label absolute -top-6 left-1/2 z-10 -translate-x-1/2 bg-ink px-4 py-2 text-cream shadow-lg shadow-ink/20 hover:bg-ink/80"
                     >
                       ↓ Latest
                     </motion.button>
@@ -1030,8 +1047,9 @@ export function ChatRoom() {
                       e.preventDefault();
                       void send(draft);
                     }}
-                    className="flex items-end gap-2 rounded-[1.75rem] border border-line bg-[#fbf8f3] py-1.5 pr-1.5 pl-5 shadow-[0_10px_30px_-24px_rgba(28,20,15,0.5)] transition-[border-color,box-shadow] focus-within:border-ember/60 focus-within:shadow-[0_0_0_4px_rgba(216,90,43,0.10)]"
+                    className="relative flex items-end gap-2 border border-ink/25 bg-parchment py-1.5 pr-1.5 pl-5 shadow-[0_18px_34px_-26px_rgba(13,8,9,0.7)] transition-[border-color,box-shadow] focus-within:border-ink focus-within:shadow-[0_0_0_3px_rgba(113,88,58,0.18)]"
                   >
+                    <span aria-hidden className="noir-corners" />
                     <svg aria-hidden width="19" height="19" viewBox="0 0 24 24" fill="none" className="mb-3 shrink-0 text-ink/50">
                       <path d="M5 6h14v9H9l-4 3.5V6Z" {...S} />
                     </svg>
@@ -1052,21 +1070,21 @@ export function ChatRoom() {
                       }}
                       placeholder="Ask anything about Milli…"
                       autoComplete="off"
-                      className="max-h-36 min-w-0 flex-1 resize-none bg-transparent py-3 text-[14px] leading-6 placeholder:text-muted/70 focus:outline-none"
+                      className="max-h-36 min-w-0 flex-1 resize-none bg-transparent py-3 font-display text-[18px] leading-6 placeholder:text-muted/70 placeholder:italic focus:outline-none"
                     />
                     <motion.button
                       type="submit"
                       disabled={!draft.trim() || thinking}
                       aria-label="Send"
                       whileTap={{ scale: 0.9 }}
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-cream transition-colors disabled:cursor-not-allowed ${
-                        draft.trim() && !thinking ? "bg-ember" : "bg-ink"
+                      className={`flex h-11 w-14 shrink-0 items-center justify-center text-cream transition-colors disabled:cursor-not-allowed [clip-path:var(--noir-cut)] ${
+                        draft.trim() && !thinking ? "bg-ink" : "bg-ink/40"
                       }`}
                     >
-                      <Chevron dir="right" />
+                      <Arrow w={28} />
                     </motion.button>
                   </form>
-                  <p className="mt-2.5 text-center text-[11px] text-muted">
+                  <p className="mt-3 text-center text-[10px] tracking-[0.08em] text-muted">
                     Milli can make mistakes. For critical information, please confirm with our team.
                   </p>
               </div>

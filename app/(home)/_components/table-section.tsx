@@ -24,7 +24,6 @@ export function TableSection() {
       </div>
 
       <div className="mm-table__text">
-        <p className="mm-label">The Table</p>
         <h2 id="table-title" className="mm-display mm-h2">
           Food, drinks
           <br />

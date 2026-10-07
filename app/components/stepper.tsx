@@ -11,6 +11,7 @@ export function Stepper({
   max = 20,
   onChange,
   label,
+  className = "rounded-full",
 }: {
   qty: number;
   busy?: boolean;
@@ -19,10 +20,12 @@ export function Stepper({
   onChange: (next: number) => void;
   /** Names the dish for screen readers: "One fewer Chilli Cheese Kulcha". */
   label?: string;
+  /** Shape of the outline; the noir pages pass a square one. */
+  className?: string;
 }) {
   const suffix = label ? ` ${label}` : "";
   return (
-    <div className="inline-flex items-center rounded-full border border-ink/15">
+    <div className={`inline-flex items-center border border-ink/15 ${className}`}>
       <button
         type="button"
         onClick={() => onChange(qty - 1)}

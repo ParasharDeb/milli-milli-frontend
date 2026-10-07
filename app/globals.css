@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-@theme inline {
+/* Colours are plain theme variables (not inlined), so a page can re-ink them
+   by redefining --color-* on a wrapper -- see (site)/noir.css. */
+@theme {
   /* Palette pulled from the room: cave plaster, rattan, lamplight, a copper bar */
   --color-cream: #f6efe4;
   --color-sand: #ede3d4;
@@ -22,7 +24,9 @@
   --color-gold: #c9a227;
   /* the menu's buttons: a darker, browner ember */
   --color-rust: #b0451f;
+}
 
+@theme inline {
   --font-sans: var(--font-inter);
   --font-display: var(--font-fraunces);
 }
