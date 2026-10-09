@@ -4,7 +4,7 @@ import { Wordmark } from "./ui";
 /** Placeholder profile and map links: swap for the real ones. */
 const LINKS = [
   { label: "Instagram", href: "https://instagram.com/" },
-  { label: "Location", href: "https://maps.google.com/?q=Milli+Milli+Guwahati" },
+  { label: "Location", href: "https://maps.google.com/?q=Milli+Milli+Kolkata" },
   { label: "Contact", href: "mailto:hello@millimilli.in" },
 ];
 
@@ -20,7 +20,7 @@ export function Footer() {
           <span>Bar</span>
           <span>Nights</span>
         </p>
-        <p>Guwahati, India</p>
+        <p>Kolkata, India</p>
       </div>
       <ul className="mm-footer__links mm-micro">
         {LINKS.map((l) => (

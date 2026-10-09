@@ -82,7 +82,7 @@ export function Footer() {
         </nav>
 
         <div className="flex flex-col gap-4 md:items-end">
-          <p className="text-[13px] text-cream/70">Since 2019, in Guwahati</p>
+          <p className="text-[13px] text-cream/70">Since 2019, in Kolkata</p>
           <ul className="flex gap-3">
             {SOCIAL.map((s) => (
               <li key={s.label}>

@@ -17,7 +17,7 @@ export function generateStaticParams() {
 export const metadata: Metadata = {
   title: "Milli Milli — Dinner is only the beginning",
   description:
-    "Restaurant, bar and late nights in Guwahati. Good food, longer nights, and whatever happens next.",
+    "Restaurant, bar and late nights in Kolkata. Good food, longer nights, and whatever happens next.",
   robots: { index: false },
 };
 
