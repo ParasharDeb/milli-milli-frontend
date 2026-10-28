@@ -93,7 +93,7 @@ function ComboCard({ combo, index }: { combo: Combo; index: number }) {
         type="button"
         onClick={handleAdd}
         disabled={busy || added || empty}
-        className={`noir-btn mt-3.5 h-10 w-full px-3 ${added ? "noir-btn--done" : ""}`}
+        className={`noir-btn mt-3.5 h-10 w-full px-3 [clip-path:none] ${added ? "noir-btn--done" : ""}`}
       >
         {added
           ? "Added ✓"

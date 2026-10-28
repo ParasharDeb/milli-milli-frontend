@@ -257,7 +257,7 @@ function DishCard({ item, browseOnly }: { item: MenuItem; browseOnly?: boolean }
                   disabled={busy || added}
                   whileTap={{ scale: 0.9 }}
                   aria-label={added ? `${item.name} added` : `Add ${item.name} to your order`}
-                  className={`noir-btn h-7 px-3 text-[9.5px] ${added ? "noir-btn--done" : ""}`}
+                  className={`noir-btn h-7 px-3 text-[9.5px] [clip-path:none] ${added ? "noir-btn--done" : ""}`}
                 >
                   {added ? "Added ✓" : "Add +"}
                 </motion.button>
